@@ -1,32 +1,72 @@
-# Python cache
+# ── Python build & cache ─────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+.eggs/
 
-# Virtual environments
+# ── Virtual environments ─────────────────────────────────────────────
 venv/
 env/
+.venv/
 enelvenv/
 
-# Jupyter
+# ── Jupyter ──────────────────────────────────────────────────────────
 .ipynb_checkpoints/
+notebooks/**/.ipynb_checkpoints/
 
-# Data (DO NOT TRACK DATA FILES)
+# ── Data (immutable inputs, regenerable outputs — never tracked) ─────
 data/raw/*
 !data/raw/.gitkeep
-
 data/processed/*
 !data/processed/.gitkeep
+data/interim/*
+!data/interim/.gitkeep
+data/external/*
+!data/external/.gitkeep
+!data/external/README.md
+# Small dev fixtures ARE tracked
+!data/samples/
 
-# Models
+# ── Model artifacts (regenerable, versioned via registry) ────────────
 models/*
 !models/.gitkeep
+!models/registry.json
+mlruns/
+.mlflow/
 
-# Logs
+# ── Logs and run outputs ─────────────────────────────────────────────
 *.log
+logs/
+outputs/
 
-# Streamlit
+# ── Streamlit ────────────────────────────────────────────────────────
 .streamlit/
 
-# OS junk
+# ── Testing & coverage ───────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ── Quarto/LaTeX intermediates ───────────────────────────────────────
+reports/output/*.aux
+reports/output/*.log
+reports/output/*.out
+reports/output/*.toc
+reports/source/.quarto/
+_freeze/
+
+# ── OS junk ──────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ── IDE ──────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,16 @@
+area,decision,evidence
+Target & frequency,Global_active_power at 1h (mean),§5 — daily and weekly cycles visible at hourly resolution
+Forecast horizon,24 hours ahead (day-ahead),§5.3 — daily cycle structure clearly visible at this horizon
+Missing-value policy,Interpolate gaps ≤ 3 rows; preserve longer gaps as NaN with outage indicator,"§4.3 — 54 short / 17 long bimodal split; longest gap = 7,226 rows"
+Stationarity (for ARIMA family),d = 1 (first difference); seasonal D selected by auto_arima,"§6 — ADF rejects unit root, KPSS rejects stationarity in original; both confirm stationary after differencing"
+Seasonality regime,Multiplicative time-varying — STL with period=24 captures the dominant daily cycle,§7 — seasonal amplitude 5.1 kW; visible shape drift across years
+Lag features,"[1, 24, 168] hours; lag_168 carries the largest ACF (+0.21)",§8 — ACF spikes at lag 24/48/72/168
+Rolling features,"Past-only rolling mean/std/min/max over windows [3, 24, 168]",§7 — residual std of 0.66 kW argues for short-term variability features
+Calendar features,"hour, day_of_week, month, is_weekend + sin/cos cyclical encodings",§10 — weekday vs weekend gap of +19%; monthly U-shape with August trough
+External regressors,French national holidays (enabled). Weather: deferred to events module (Phase 4).,§10 — annual cycle suggests seasonal regressors will add value; brief specifies weather as future direction
+Leakage policy,Strict mode = True. Reject contemporaneous raw features.,§3 — Global_intensity max × Voltage median ≈ Global_active_power max (P = V·I exact); registry test enforces
+Validation strategy,"Rolling-origin, 6 folds × 30d valid windows on 365d train",cfg.splits — chosen for stable mean±std estimates without prohibitive cost
+Primary metric,"MAE (guardrails: RMSE, WAPE, MASE, sMAPE)",§9 — right-skewed distribution argues for MAE over RMSE as primary; WAPE/MASE for cross-series comparability
+Target transform (Prophet),Consider log(1+y) for Prophet; tree/neural models unchanged,§9 — skewness ≈ 1.5; Q-Q plot bends sharply at high tail
+Segment reporting,"Mandatory per-segment metrics on hour, day_of_week, month",§10 — heatmap shows hour × dow interaction; global metric would hide failures at evening peaks
+Anomaly attribution note,Operate on raw 1-min series; hourly aggregate drops empty buckets and hides outage signals,"§7.2 — STL residual during Aug 17–22 outage is artefactual (rows dropped, not flagged)"

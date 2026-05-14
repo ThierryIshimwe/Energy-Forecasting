@@ -1,7 +1,0 @@
-item,decision,action_for_next_notebook
-Target,Global_active_power,Use as y
-Horizon,24,Create supervised windows accordingly
-Validation,Rolling-origin (fixed splits),Reuse split_plan exactly
-Missingness,Two-stage handling (short gaps vs long outages),Implement gap-length-based imputation/masking
-Leakage policy,Only features available at prediction time,Keep and update leakage_register
-Segment checks,Track hour/day/month behavior,Report metrics by segment in modeling

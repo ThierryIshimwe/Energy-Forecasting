@@ -1,0 +1,49 @@
+data:
+  source_url: https://archive.ics.uci.edu/static/public/235/individual+household+electric+power+consumption.zip
+  raw_filename: data.txt
+  expected_sha256: 4259c9d7ece5dbee9ab8d53682baac68d791c864f0f64a52b4043cb3b90894b7
+target:
+  column: Global_active_power
+  frequency: 1h
+  horizon_hours: 24
+  aggregation: mean
+preprocessing:
+  short_gap_max_rows: 3
+  interpolation_method: time
+features:
+  lag_hours:
+  - 1
+  - 24
+  - 168
+  rolling_window_hours:
+  - 3
+  - 24
+  - 168
+  enable_cyclical_encoding: true
+  enable_calendar: true
+  enable_french_holidays: true
+  strict_leakage_safe: true
+splits:
+  n_folds: 6
+  train_window_days: 365
+  valid_window_days: 30
+  gap_days: 0
+evaluation:
+  primary_metric: MAE
+  guardrail_metrics:
+  - RMSE
+  - WAPE
+  - MASE
+  - sMAPE
+  prediction_interval: 0.95
+  segment_dimensions:
+  - hour
+  - day_of_week
+  - month
+tuning:
+  n_trials: 100
+  timeout_minutes_per_model: 60
+  sampler: TPESampler
+reproducibility:
+  seed: 42
+  deterministic_torch: true

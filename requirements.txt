@@ -1,10 +1,77 @@
-pandas
-numpy
-matplotlib
-seaborn
-scikit-learn
-statsmodels
-xgboost
-streamlit
-plotly
-joblib
+# ── Core data handling ───────────────────────────────────────────────
+# pandas: All tabular operations, DateTimeIndex, time-series ops
+#   └─ DataFrame, Series, DateTimeIndex, resample, rolling
+# numpy:  Numerical arrays, vectorized math, RNG
+pandas==2.2.3
+numpy==1.26.4
+
+# ── File I/O & storage ───────────────────────────────────────────────
+# pyarrow: Parquet read/write for feature artifacts (faster than CSV)
+# pyyaml:  Loading config files in conf/
+pyarrow==17.0.0
+PyYAML==6.0.2
+
+# ── Statistical analysis & classical time-series ─────────────────────
+# statsmodels: ADF/KPSS stationarity tests, ARIMA, SARIMAX, STL decomp
+#   └─ tsa.stattools.adfuller, tsa.stattools.kpss
+#   └─ tsa.arima.model.ARIMA, tsa.statespace.SARIMAX
+#   └─ tsa.seasonal.STL
+# scipy:       Statistical tests, distributions, bootstrap
+# pmdarima:    auto_arima for SARIMA order selection (Hyndman-Khandakar)
+statsmodels==0.14.4
+scipy==1.13.1
+pmdarima==2.0.4
+
+# ── Machine learning (tabular) ───────────────────────────────────────
+# scikit-learn: Baselines, ensemble methods, metrics, preprocessing
+# xgboost:      Gradient boosting forecaster
+scikit-learn==1.5.2
+xgboost==2.1.3
+
+# ── Deep learning (sequence models) ──────────────────────────────────
+# torch: LSTM/GRU implementation for sequential forecasting
+#   └─ nn.LSTM, nn.GRU, torch.utils.data.DataLoader
+torch==2.4.1
+
+# ── Modern forecasting (decomposition + holidays) ────────────────────
+# prophet: Trend + seasonality + holiday decomposition (interpretable)
+#   └─ Accepts custom event regressors → integrates with event catalog
+prophet==1.1.6
+
+# ── Hyperparameter optimization ──────────────────────────────────────
+# optuna: Bayesian (TPE) hyperparameter search with pruning
+optuna==4.0.0
+
+# ── Experiment tracking & model registry ─────────────────────────────
+# mlflow: Run logging, model versioning, artifact storage (local mode)
+mlflow==2.17.2
+
+# ── Visualization ────────────────────────────────────────────────────
+# matplotlib: Static figures for report (Actual vs Predicted, residuals)
+# seaborn:    Statistical plot styling (used in EDA notebook)
+# plotly:     Interactive charts in the Streamlit app
+matplotlib==3.9.2
+seaborn==0.13.2
+plotly==5.24.1
+
+# ── Calendar & external events ───────────────────────────────────────
+# holidays: French national holidays for the event catalog
+holidays==0.59
+
+# ── Application layer ────────────────────────────────────────────────
+# streamlit: Interactive dashboard for forecasts and diagnostics
+streamlit==1.39.0
+
+# ── Logging & utilities ──────────────────────────────────────────────
+# loguru:  Structured logging throughout src/ (replaces stdlib logging)
+# tqdm:    Progress bars for long-running operations
+# joblib:  Model serialization (used by sklearn, also direct)
+loguru==0.7.2
+tqdm==4.66.6
+joblib==1.4.2
+
+# ── Notebook execution ───────────────────────────────────────────────
+# ipykernel: Required to run notebooks with the project venv as kernel
+# jinja2:    Used by pandas .style accessor for rendered tables
+ipykernel==6.29.5
+jinja2==3.1.4

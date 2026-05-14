@@ -1,0 +1,69 @@
+# ─────────────────────────────────────────────────────────────────────
+#  Pre-commit hooks — run automatically before every commit.
+#  Install once with: pre-commit install (handled by `make setup`).
+# ─────────────────────────────────────────────────────────────────────
+
+repos:
+  # ── File hygiene ────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]   # block >1 MB files (raw data must use --no-verify)
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # ── Notebook output stripping ───────────────────────────────────
+  # Notebook outputs are regenerable via the pipeline. Keeping them out of
+  # git keeps diffs reviewable and stops the repo from bloating.
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+        files: '\.ipynb$'
+        exclude: '^notebooks/_legacy/'
+
+  # ── Code formatting (writes changes) ────────────────────────────
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.11
+        files: '^(src|tests|scripts)/'
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black", "--line-length", "100"]
+        files: '^(src|tests|scripts)/'
+
+  # ── Style + bug-pattern checks ──────────────────────────────────
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        additional_dependencies: ["flake8-bugbear==24.10.31"]
+        args:
+          - "--max-line-length=100"
+          - "--extend-ignore=E203,W503"   # black-compatible
+          - "--select=E,W,F,B"
+        files: '^(src|tests|scripts)/'
+
+  # ── Type checking (selective — full check via `make lint`) ──────
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - "types-PyYAML"
+          - "pandas-stubs"
+        args: ["--config-file=pyproject.toml"]
+        files: '^src/energy_forecasting/'
+        # mypy runs in non-strict mode here for speed; full check via Makefile
+        exclude: '^(notebooks|scripts|app)/'
