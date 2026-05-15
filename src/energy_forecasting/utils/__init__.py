@@ -7,6 +7,7 @@ with that caller — not here.
 
 from energy_forecasting.utils.io import atomic_write_yaml, compute_sha256, ensure_dir
 from energy_forecasting.utils.logging import configure_logging, get_logger
+from energy_forecasting.utils.model_io import load_model, save_model
 from energy_forecasting.utils.seeds import set_global_seed
 
 __all__ = [
@@ -15,5 +16,7 @@ __all__ = [
     "configure_logging",
     "ensure_dir",
     "get_logger",
+    "load_model",
+    "save_model",
     "set_global_seed",
 ]

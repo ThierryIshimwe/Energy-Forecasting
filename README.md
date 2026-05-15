@@ -5,6 +5,7 @@ A reproducible, leakage-safe time-series forecasting pipeline for household elec
 > **Course:** AI Techniques — LUISS Guido Carli (Department of AI, Data and Decision Sciences)
 > **Industry partner:** Enel Global ICT
 > **Brief:** [`reports/Project_Work_Luiss_AI_Techniques_200326.pdf`](reports/Project_Work_Luiss_AI_Techniques_200326.pdf)
+> **Latest progress + Phase-4 leaderboard:** see [`reports/HANDOFF_REPORT.md`](reports/HANDOFF_REPORT.md) — the auditable status doc that we update along the way.
 
 ---
 
