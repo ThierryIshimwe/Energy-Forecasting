@@ -22,11 +22,18 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+# Tracked: the canonical engineered feature matrix that the deliverable
+# notebook loads at startup. Required for evaluator-side reproducibility
+# without forcing them to run the 02_feature_engineering pipeline first.
+!data/processed/features.parquet
 data/interim/*
 !data/interim/.gitkeep
 data/external/*
 !data/external/.gitkeep
 !data/external/README.md
+# Tracked: weather data fetched from meteostat (Paris-Montsouris). Required
+# by §10.4 of the deliverable notebook. Small (~660 KB) and stable.
+!data/external/paris_montsouris_weather.parquet
 # Small dev fixtures ARE tracked
 !data/samples/
 

@@ -130,23 +130,39 @@ energy-forecasting/
 - **Git** for cloning
 - **Quarto** (only needed for PDF report generation): [quarto.org](https://quarto.org/)
 
-### Installation
+### Running the deliverable notebook (evaluator path)
+
+If you only want to read the submission deliverable and re-execute every cell, this is the minimum sequence. All artifacts the notebook consumes (engineered feature matrix, weather parquet, per-fold prediction CSVs, EDA summary numbers, figures) are tracked in the repository, so no raw-data download is required.
 
 ```bash
-# Clone the repository
-git clone https://github.com/ThierryIshimwe/energy-forecasting.git
-cd energy-forecasting
+# Clone
+git clone https://github.com/ThierryIshimwe/Energy-Forecasting.git
+cd Energy-Forecasting
 
-# Create and activate a virtual environment (recommended)
+# Create + activate a virtual environment
 python -m venv .venv
-.venv\Scripts\activate           # Windows
-# source .venv/bin/activate      # macOS/Linux
+.venv\Scripts\activate                 # Windows
+# source .venv/bin/activate            # macOS/Linux
 
-# Install everything (package + dev tools + pre-commit hooks)
-make setup
+# Install runtime dependencies and the package itself
+pip install -r requirements.txt
+pip install -e .
+
+# Open notebooks/00_main_deliverable.ipynb in Jupyter Lab / VS Code
+# and Run All. Every cell loads from tracked artifacts; no network calls.
 ```
 
-### Running the Pipeline
+To execute the notebook from the command line (CI-style), install `nbconvert` from the dev requirements and run:
+
+```bash
+pip install -r requirements-dev.txt
+python -m nbconvert --to notebook --execute notebooks/00_main_deliverable.ipynb \
+    --output 00_main_deliverable.ipynb --ExecutePreprocessor.timeout=600
+```
+
+### Regenerating artifacts from the raw UCI data (full-rerun path)
+
+This path is only needed if you want to reproduce the artifacts themselves (rather than just consume them). It downloads the 127 MB UCI source, rebuilds the feature matrix, retrains every model, and re-runs the analysis scripts.
 
 ```bash
 make data         # Download UCI dataset + verify SHA-256 (~130 MB)

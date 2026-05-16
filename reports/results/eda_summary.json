@@ -1,0 +1,11 @@
+{
+  "n_total_rows": 2075259,
+  "n_missing_rows": 25979,
+  "missing_pct": 1.2518,
+  "n_gap_segments": 71,
+  "n_short_gaps": 54,
+  "n_long_gaps": 17,
+  "longest_gap_minutes": 7226,
+  "longest_gap_start": "2010-08-17 21:02:00",
+  "longest_gap_end": "2010-08-22 21:27:00"
+}

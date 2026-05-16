@@ -55,8 +55,13 @@ seaborn==0.13.2
 plotly==5.24.1
 
 # ── Calendar & external events ───────────────────────────────────────
-# holidays: French national holidays for the event catalog
+# holidays:  French national holidays for the event catalog
+# meteostat: Hourly weather observations from NOAA / Météo-France stations.
+#            Used by scripts/_dev_fetch_weather.py to (re)build the
+#            Paris-Montsouris parquet consumed by §10.4 of the deliverable
+#            notebook. Pinned to <2.x because 2.x removed top-level Hourly.
 holidays==0.59
+meteostat==1.6.8
 
 # ── Application layer ────────────────────────────────────────────────
 # streamlit: Interactive dashboard for forecasts and diagnostics
