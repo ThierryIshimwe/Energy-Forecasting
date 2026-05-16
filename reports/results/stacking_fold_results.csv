@@ -1,0 +1,2 @@
+model,fold,valid_rows,MAE,RMSE,WAPE,sMAPE,MASE
+stacking_ridge,6,720,0.3745,0.5443,0.3169,0.3423,0.8036

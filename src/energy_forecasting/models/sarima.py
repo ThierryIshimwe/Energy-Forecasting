@@ -1,4 +1,4 @@
-"""SARIMA forecaster — the classical statistical model required by the brief.
+﻿"""SARIMA forecaster — the classical statistical model required by the brief.
 
 Built on ``statsmodels.tsa.statespace.SARIMAX``. Two prediction modes:
 
@@ -174,3 +174,4 @@ class SARIMAForecaster(BaseForecaster):
     def _require_fitted(self) -> None:
         if self._results is None:
             raise ModelError(f"{self.name}.predict() called before fit()")
+

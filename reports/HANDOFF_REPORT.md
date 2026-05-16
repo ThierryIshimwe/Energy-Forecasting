@@ -1,4 +1,4 @@
-# Handoff Report — Energy Forecasting Project
+﻿# Handoff Report — Energy Forecasting Project
 
 **From:** Thierry Ishimwe
 **To:** Project team
@@ -7,7 +7,8 @@
 
 ### Change log
 
-- **v0.3 (current)** — SARIMA all 6 folds done (MAE 0.345); LSTM + GRU all 6 folds done (MAE 0.343 / 0.339); model artifact persistence added (`utils/model_io.py`); 18 trained models + 18 prediction CSVs saved to `models/` and `reports/results/`; SARIMA AvP plot added to notebook §8.2. **Brief's "≥1 classical + ≥1 DL" requirement now satisfied with one classical (SARIMA) + two DL variants (LSTM, GRU).** Only Prophet, stacking ensemble, app rewrite, and reports remain.
+- **v0.4 (current)** — SARIMA persistence gap closed: retrained all 6 folds with `remove_data()` applied before save (14 min wall-clock, deterministic — same metrics as v0.3). All 6 SARIMA prediction CSVs and 6 SARIMA `.joblib` files now exist (~215-256 MB each, local only; `.gitignore` excludes them as with every other model family). **Every model in the lineup is now end-to-end persistable.**
+- **v0.3** — SARIMA all 6 folds done (MAE 0.345); LSTM + GRU all 6 folds done (MAE 0.343 / 0.339); model artifact persistence added (`utils/model_io.py`); 18 trained models + 18 prediction CSVs saved to `models/` and `reports/results/`; SARIMA AvP plot added to notebook §8.2. **Brief's "≥1 classical + ≥1 DL" requirement now satisfied with one classical (SARIMA) + two DL variants (LSTM, GRU).** Only Prophet, stacking ensemble, app rewrite, and reports remain.
 - **v0.2** — XGBoost trained on all 6 folds (cross-fold MAE 0.336, current leader). SARIMA fold-1 done (MAE 0.368); remaining 5 folds running in background. LSTM and Prophet classes written but not yet trained.
 - **v0.1 (initial)** — Phases 1–3 complete: foundation, EDA, feature engineering, baselines. First version of this report.
 
@@ -31,12 +32,16 @@ I took the team's existing work (initial EDA notebook, feature engineering, mode
 
 The four real models cluster within a **3% MAE band**. None dominates; XGBoost edges out by 1% MAE over GRU, which itself beats LSTM consistently across all 6 folds.
 
-**Still pending** (bonus / report-phase work):
+**Still pending** (bonus / report-phase / quality-polish work):
 
 - Prophet (class written, not yet trained — fast: ~3-5 min when run).
-- Stacking ensemble (trains in ~30 s from saved per-fold predictions).
-- Streamlit app rewrite (current is archived at `app/app_legacy.py.bak`; uses synthetic data).
+- Stacking ensemble (trains in ~30 s from the saved per-fold predictions).
+- AvP + residual plots for SARIMA folds 2-6, LSTM, and GRU (XGBoost has them; SARIMA fold-1 has them; the rest need parity).
+- Per-segment analysis (MAE by hour-of-day × model, by day-of-week, by month) in the modeling notebook.
+- Diebold-Mariano significance test between the top models (the 4 real models cluster in a 3% MAE band — a DM test would tell us whether XGBoost is *significantly* better than GRU).
 - 5-page technical-report PDF + 1-2 slide executive-summary PPT.
+- Unified deliverable notebook (single end-to-end story for submission).
+- Streamlit app rewrite (current is archived at `app/app_legacy.py.bak`; uses synthetic data).
 
 **Most important finding from auditing the original work:** the headline result of **MAE = 0.0136** in the original `modeling.ipynb` was caused by **target leakage**. The Random Forest used `Voltage`, `Global_intensity`, and `Sub_metering_1/2/3` as features — but these are contemporaneous physical measurements that are mathematically related to the target (`P = V × I` from Ohm's law; sub-meters are *components* of `Global_active_power`). The model wasn't forecasting — it was reconstructing the target from its own components. After fixing this, the realistic baseline MAE is **~0.38 kW** (1-step-ahead naïve). Every model trained in the rebuild has to beat that to deserve a place in the report, and all four do.
 
@@ -120,7 +125,7 @@ The legacy files are archived for reference at [`notebooks/_legacy/`](../noteboo
 ### ✅ Phase 4 — Real model lineup (brief-required portion complete)
 
 - **SARIMA** ([`src/energy_forecasting/models/sarima.py`](../src/energy_forecasting/models/sarima.py)) — class complete, `order=(1,1,1)×(1,1,1,24)`, supports both multi-step `predict` and 1-step-ahead `predict_rolling_one_step`.
-  - ✅ **All 6 folds done** — total wall-clock 160 min. Cross-fold mean MAE = **0.345 ± 0.079**, MASE = 0.588. Beats every naïve baseline; ranks **2nd on the leaderboard** behind XGBoost (0.336). Per-fold table at [`reports/results/sarima_fold_results.csv`](results/sarima_fold_results.csv).
+  - ✅ **All 6 folds done** — total wall-clock 160 min. Cross-fold mean MAE = **0.345 ± 0.079**, MASE = 0.588. Beats every naïve baseline; ranks **4th on the leaderboard** behind XGBoost (0.336), GRU (0.339), and LSTM (0.343). Per-fold table at [`reports/results/sarima_fold_results.csv`](results/sarima_fold_results.csv).
   - ✅ Notebook section §8 auto-loads the per-fold CSV; the cell shows the full 6-fold table and the cross-fold mean/std.
   - ⚠️ **Persistence gap (deliberate, see §4.5 below):** only the metrics CSV and fold-1 predictions are saved on disk; trained model objects and predictions for folds 2-6 were not captured. Retraining costs ~160 min, so this is accepted unless stacking ensemble specifically requires SARIMA OOF predictions.
 - **XGBoost** ([`src/energy_forecasting/models/xgboost_model.py`](../src/energy_forecasting/models/xgboost_model.py)) — class + tests complete. Defaults: `max_depth=6, learning_rate=0.05, n_estimators=500`.
@@ -148,17 +153,19 @@ The persistence helper is at [`src/energy_forecasting/utils/model_io.py`](../src
 | Model | Per-fold metrics | Fold-1 predictions | Folds 2-6 predictions | Trained model files |
 |---|---|---|---|---|
 | 3× naïve baselines | ✅ | ✅ | ❌ | n/a (no training, predictions can be recomputed trivially) |
-| **XGBoost** | ✅ | ✅ | ✅ (retrofitted) | ✅ (6 × ~680 KB) |
+| **XGBoost** | ✅ | ✅ | ✅ | ✅ (6 × ~680 KB) |
+| **SARIMA** | ✅ | ✅ | ✅ | ✅ (6 × ~215-256 MB; cached state stripped via `remove_data()`) |
 | **LSTM** | ✅ | ✅ | ✅ | ✅ (6 × ~65 KB) |
 | **GRU** | ✅ | ✅ | ✅ | ✅ (6 × ~49 KB) |
-| SARIMA | ✅ | ✅ | ❌ (160 min to retrain — **deliberately skipped**) | ❌ (same reason) |
 | Prophet | — | — | — | — (not trained yet) |
 
 **Total persisted artifacts right now:**
-- 18 trained model files in [`models/`](../models/) (6 XGBoost + 6 LSTM + 6 GRU)
-- 18 per-fold prediction CSVs in [`reports/results/`](results/)
+- 24 trained model files in [`models/`](../models/) (6 each of XGBoost, SARIMA, LSTM, GRU)
+- 24 per-fold prediction CSVs in [`reports/results/`](results/)
 - 5 fold-results CSVs (1 per model family): `baseline_fold_results.csv`, `xgboost_fold_results.csv`, `sarima_fold_results.csv`, `lstm_fold_results.csv`, `gru_fold_results.csv`
 - The canonical leaderboard at [`reports/results/leaderboard_phase4.csv`](results/leaderboard_phase4.csv)
+
+**SARIMA file size note:** statsmodels' `SARIMAXResults` object remains larger than the other model families (~215 MB per fold vs <1 MB for the rest) even after `remove_data()` is applied — the Kalman filter and smoother result objects keep per-timestep state that statsmodels' public API cannot fully strip without breaking `.predict()` on new data. All `models/*.joblib` files are git-ignored regardless, so this only affects local disk (~1.4 GB total for SARIMA), not the repo size.
 
 **Loading a trained model from disk** (one-liner that powers stacking + the future app rewrite):
 ```python
@@ -167,17 +174,16 @@ xgb_fold1 = load_model("models/xgboost_default_fold_1.joblib")
 y_pred = xgb_fold1.predict(X_valid)
 ```
 
-**What's lost by not having model files for SARIMA:**
-- SARIMA cannot be loaded into the Streamlit app — when we rebuild the app, only XGBoost / LSTM / GRU will be loadable as production predictors.
-- SARIMA cannot participate in the stacking ensemble — it needs out-of-fold predictions for all 6 folds, but only fold-1 predictions are on disk.
-- Reproducing exact SARIMA predictions on a new test set requires refitting.
+**Loading any saved model on the colleague's machine** (one-liner that powers the stacking ensemble + app rewrite):
+```python
+from energy_forecasting.utils import load_model
+m = load_model("models/sarima_default_fold_6.joblib")  # or xgboost / lstm / gru
+y_pred = m.predict(X_valid) if hasattr(m, "predict_rolling_one_step") else m.predict(X_valid)
+```
 
-**Why we accepted this gap:**
-- SARIMA ranks 4th (MAE 0.345) behind XGBoost (0.336), GRU (0.339), and LSTM (0.343). Even if added to a stacking ensemble the gain is unlikely to exceed ~1-2% MAE — not worth 2.5 hours of retraining.
-- For the brief's required deliverables (leaderboard table, Actual-vs-Predicted plot in §8.2, residual plot), SARIMA's fold-1 predictions and the metrics CSV are sufficient.
-- The forward-looking fix is now in place via `model_io.py`; every training script we added after SARIMA uses it from the start.
-
-**If the colleague wants to retrofit SARIMA later** the script lives at [`scripts/_dev_run_sarima_all_folds.py`](../scripts/_dev_run_sarima_all_folds.py). Two small edits would suffice: (a) remove the `if fold.fold_id == 1` guard around the predictions CSV save so all folds are written, (b) `from energy_forecasting.utils import save_model` and call `save_model(model, ROOT / "models" / f"sarima_default_fold_{fold.fold_id}.joblib")` after each fit. ~160 min wall-clock to re-run.
+**Note for the colleague:** because `models/*.joblib` is `.gitignored`, the trained models do not arrive in their clone. They have two options to obtain them:
+1. **Re-run the training scripts** — all four scripts at [`scripts/_dev_run_*_all_folds.py`](../scripts/) are deterministic given the same seed. Total wall-clock to regenerate all 24 model files: XGBoost ~1 min + SARIMA ~14 min + LSTM ~25 min + GRU ~45 min ≈ ~85 minutes.
+2. **Use only the per-fold prediction CSVs** (which ARE committed to git in `reports/results/`). These are sufficient for building the stacking ensemble and authoring the report; only the Streamlit app rewrite genuinely needs the model files.
 
 ### ❌ Not started
 
@@ -368,3 +374,4 @@ The brief-required modeling is **done**. What's left is bonus content + the repo
 The original EDA work (especially the missingness deep-dive in Section 1 and the senior workflow framing in Section 2) was thoughtful and the conclusions hold up. The rebuild preserved those conclusions and built them into enforceable code rather than documentation. The leakage issue caught in the original `feature_engineering.ipynb` is the kind of subtle bug that even careful work can produce — flagging it now means we don't ship a report with an invalid headline number.
 
 Questions about anything in this report or the codebase: see commit history, file docstrings, and the test suite. Every architectural decision has a written rationale somewhere in the repo.
+
