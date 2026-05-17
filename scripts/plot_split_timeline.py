@@ -1,7 +1,7 @@
 """Developer verification: load the real feature matrix, build the rolling-origin
 split plan, save it to disk, and produce a timeline visualization.
 
-Run via:  .venv/Scripts/python.exe scripts/_dev_visualize_splits.py
+Run via:  .venv/Scripts/python.exe scripts/plot_split_timeline.py
 
 Outputs:
   data/processed/split_plan.csv          — the canonical split plan

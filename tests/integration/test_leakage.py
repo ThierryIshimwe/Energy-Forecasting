@@ -4,10 +4,12 @@ These tests codify the project's core safety guarantee: when
 ``config.features.strict_leakage_safe`` is True, the feature pipeline cannot
 emit features that would cause target leakage.
 
-The original team-member implementation achieved MAE = 0.0136 by feeding
-``Global_intensity``, ``Sub_metering_*``, and ``Voltage`` (all contemporaneous
-with the target) into a Random Forest. This file makes that bug impossible
-to reintroduce silently.
+The columns ``Global_intensity``, ``Voltage``, and ``Sub_metering_1/2/3`` are
+all measured at the same timestamp as the target ``Global_active_power``. They
+are physical components of the target (``P = V × I`` from Ohm's law; sub-meters
+sum into the total). Any model trained with them as features reconstructs the
+target from its own components rather than forecasting it — the suite below
+makes that mistake impossible to reintroduce silently.
 
 All tests in this file carry the ``leakage`` marker so they can be run
 exclusively via ``make leakage-check`` or ``pytest -m leakage``.
@@ -37,7 +39,7 @@ pytestmark = pytest.mark.leakage
 # ─────────────────────────────────────────────────────────────────────
 
 class TestRegistry:
-    """The registry must classify the original team's leaked columns as unsafe."""
+    """The registry must classify every same-timestamp component of the target as unsafe."""
 
     UNSAFE_RAW_COLUMNS = (
         "Global_intensity",
@@ -169,10 +171,9 @@ class TestRealDataPlausibility:
         """A lag-1 naive baseline on the safe feature matrix should have MAE
         within a plausible range for this dataset.
 
-        The original leaked model achieved MAE = 0.0136 (a contemporaneous-features
-        artifact). A leakage-free model on hourly data should be in the
-        0.1 – 1.0 kW range. If we see a value far below 0.05, leakage may
-        have crept back in.
+        A leakage-free model on hourly residential consumption should sit in
+        the 0.1 – 1.0 kW range. A value far below 0.05 indicates that a
+        same-timestamp component of the target has crept back into the matrix.
         """
         from energy_forecasting.data import load_raw
         from energy_forecasting.preprocessing import preprocess

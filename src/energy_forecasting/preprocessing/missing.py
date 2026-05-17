@@ -3,8 +3,12 @@
 Policy (from EDA-validated decisions):
 
 1. **Short gaps** — consecutive missing rows up to ``short_gap_max_rows`` — are
-   interpolated. These are random isolated sensor blips with no structural
-   meaning; filling them avoids destroying long usable spans of data.
+   interpolated using **past-only** information (``limit_direction="forward"``).
+   These are random isolated sensor blips with no structural meaning; filling
+   them avoids destroying long usable spans of data. *Forward-only* is
+   essential: a two-sided interpolation would fill a NaN at time t using a
+   future observation at t+k, which would leak future information into any
+   downstream lag/rolling feature built from this series.
 
 2. **Long gaps** — anything longer — are preserved as NaN and flagged with an
    explicit ``is_outage_gap`` indicator. These represent real acquisition
@@ -137,12 +141,16 @@ def apply_missing_value_policy(
             n_short_gaps += 1
 
     cleaned = df.copy()
-    cleaned[measurement_cols] = cleaned[measurement_cols].interpolate(
-        method=interpolation_method,
-        limit=short_gap_max_rows,
-        limit_direction="both",
+    # PAST-ONLY FILL. Pandas' `interpolate(method="time")` ALWAYS blends both
+    # surrounding observations for interior NaNs (`limit_direction` only
+    # controls which side of a NaN-run gets filled at the edges) — that would
+    # leak future information into y[t] and then into every lag/rolling
+    # feature derived from this series. We use ffill() instead so each filled
+    # cell is exactly equal to the last past observation, no future blending.
+    cleaned[measurement_cols] = cleaned[measurement_cols].ffill(
+        limit=short_gap_max_rows
     )
-    # Re-mask the long gaps. Interpolation can flow across short boundaries
+    # Re-mask the long gaps. ffill can spill across short boundaries
     # into long gaps; we explicitly null those out to preserve the policy.
     cleaned.loc[long_gap_mask, measurement_cols] = np.nan
 

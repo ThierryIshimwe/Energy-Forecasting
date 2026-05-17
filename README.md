@@ -1,158 +1,26 @@
 # Energy Forecasting — Household Electricity Consumption
 
-A reproducible, leakage-safe time-series forecasting pipeline for household electric power consumption, comparing classical statistical, gradient-boosting, and deep-learning approaches, with anomaly-attribution against real-world events.
+A reproducible, leakage-safe time-series forecasting pipeline for hourly household electricity consumption. Four model families (SARIMA, XGBoost, LSTM, GRU) compared on a uniform rolling-origin protocol, with statistical-significance testing, per-segment analysis, a stacking ensemble, weather augmentation, and a Streamlit dashboard.
 
-> **Course:** AI Techniques — LUISS Guido Carli (Department of AI, Data and Decision Sciences)
+> **Course:** Artificial Intelligence Techniques — LUISS Guido Carli
 > **Industry partner:** Enel Global ICT
+> **Group members:** Thierry Ishimwe, Linda Carla Zorzoli, Mariavittoria Giurato, Cesar Dushimimana
 > **Brief:** [`reports/Project_Work_Luiss_AI_Techniques_200326.pdf`](reports/Project_Work_Luiss_AI_Techniques_200326.pdf)
-> **Latest progress + Phase-4 leaderboard:** see [`reports/HANDOFF_REPORT.md`](reports/HANDOFF_REPORT.md) — the auditable status doc that we update along the way.
 
 ---
 
-## Overview
+## Run the deliverable notebook (4 commands)
 
-We forecast hourly active power consumption for a single household in **Sceaux (Paris area), France**, using the UCI *Individual Household Electric Power Consumption* dataset:
-
-- **2,075,259** minute-level measurements
-- **December 2006 → November 2010** (~47 months)
-- **7 measured variables** (active/reactive power, voltage, intensity, 3 sub-metering circuits)
-- **Forecast target:** `Global_active_power` (kW), resampled to hourly mean
-- **Forecast horizon:** 24 hours (day-ahead)
-- **Validation:** rolling-origin cross-validation, 6 folds × 30-day windows
-
-The pipeline covers the full forecasting workflow — from data integrity verification through EDA, leakage-safe feature engineering, multi-model comparison with hyperparameter tuning, statistical significance testing, and anomaly attribution against curated real-world events (French holidays, school vacations, storms).
-
-## Key Findings
-
-> *Populated after the model training and evaluation phases. Placeholders below show the structure.*
-
-| Metric | Value |
-|--------|-------|
-| Dataset | UCI Household Power, 47 months |
-| Forecast target | Hourly `Global_active_power` (kW) |
-| Models compared | **9** (3 baselines + ARIMA + SARIMA + XGBoost + LSTM + Prophet + Stacking) |
-| Best single model | **TBD** |
-| Best ensemble | **TBD** |
-| Best MAE (validation) | **TBD** |
-| Best RMSE (validation) | **TBD** |
-| Anomalies detected | **TBD** |
-| Anomalies attributed to known events | **TBD** |
-| Most impactful event | **TBD** |
-
-## Pipeline Sections
-
-| # | Stage | Notebook / Script | Highlights |
-|---|-------|-------------------|------------|
-| 0 | Setup & data | `scripts/download_data.py` | UCI fetch + SHA-256 integrity check |
-| 1 | EDA | `notebooks/01_eda.ipynb` | Seasonality, stationarity (ADF/KPSS), missingness, segment profiling |
-| 2 | Feature engineering | `notebooks/02_feature_engineering.ipynb` | **Leakage-safe** lags, rolling stats, calendar, cyclical encodings |
-| 3 | Modeling | `notebooks/03_modeling.ipynb` | 9 models, Optuna tuning, rolling-origin CV |
-| 4 | Results analysis | `notebooks/04_results_analysis.ipynb` | Leaderboard, segment performance, Diebold-Mariano significance |
-| 5 | Anomaly attribution | `src/energy_forecasting/attribution/` | Residual-based detection + event-catalog matching |
-| 6 | Reporting | `reports/source/technical_report.qmd` | Quarto → PDF (5-page report) + Pandoc → PowerPoint slides |
-| 7 | App | `app/app.py` | Streamlit dashboard with real model inference |
-
-## Architecture
-
-The project follows a layered design with a **single source of truth** for configuration ([`conf/base.yaml`](conf/base.yaml)). Leakage prevention is mechanical, not documentary — the feature registry refuses to emit contemporaneous-variable features when `strict_leakage_safe: true`.
-
-```
-Raw data (UCI) → Validator → Preprocessor → Feature factory → Splitter
-                                                                  ↓
-   ┌──────────── 9 models (baselines, ARIMA, SARIMA, XGBoost, LSTM, Prophet) ───────────┐
-   └──────────────────────────────────────────────────────────────────────────────────┘
-                                                                  ↓
-                                          Optuna tuner → Evaluator → MLflow tracker
-                                                                  ↓
-                            ┌── Anomaly attribution ──┐   ┌── Reports (Quarto/LaTeX) ──┐
-                            │  + event catalog (FR    │   │  + Streamlit app           │
-                            │   holidays, weather)    │   └────────────────────────────┘
-                            └─────────────────────────┘
-```
-
-Full design rationale in [`docs/architecture.md`](docs/architecture.md).
-
-## Repository Structure
-
-```
-energy-forecasting/
-├── conf/                          # Configuration (single source of truth)
-│   ├── base.yaml                  # Default pipeline config
-│   ├── models/                    # Per-model hyperparameter search spaces
-│   └── experiments/               # Named ablation overrides
-├── data/
-│   ├── raw/                       # Immutable inputs (gitignored, hash-verified)
-│   ├── interim/                   # Cleaned, not-yet-featured
-│   ├── processed/                 # Final feature matrices
-│   ├── external/                  # French holidays, weather, events
-│   └── samples/                   # Small fixtures (committed) for tests
-├── docs/                          # Architecture, decisions, results
-├── notebooks/                     # Story-driven exploration
-│   ├── 01_eda.ipynb
-│   ├── 02_feature_engineering.ipynb
-│   ├── 03_modeling.ipynb
-│   ├── 04_results_analysis.ipynb
-│   └── _legacy/                   # Archived original team-member work
-├── src/energy_forecasting/        # Installable package
-│   ├── config.py                  # ForecastConfig (SSoT)
-│   ├── data/                      # Loader, validator, checksums
-│   ├── preprocessing/             # Missing handling, resampling
-│   ├── features/                  # Leakage-safe feature registry
-│   ├── splits/                    # Rolling-origin CV
-│   ├── models/                    # BaseForecaster + 9 implementations
-│   ├── tuning/                    # Optuna integration
-│   ├── evaluation/                # Metrics, significance tests, segments
-│   ├── events/                    # French holidays, school cal, weather
-│   ├── attribution/               # Anomaly detection + event matching
-│   ├── tracking/                  # MLflow logger, model cards
-│   ├── inference/                 # Production prediction service
-│   └── utils/                     # Logging, seeds, atomic I/O
-├── app/                           # Streamlit dashboard
-├── scripts/                       # CLI entry points
-├── tests/                         # Pytest suite (unit + integration + leakage)
-├── reports/
-│   ├── source/                    # Quarto sources (.qmd) for the 5-page report
-│   ├── output/                    # Rendered PDF + slides
-│   ├── figures/                   # Auto-generated charts
-│   └── results/                   # Reproducible leaderboard + per-fold CSVs
-├── pyproject.toml                 # Package metadata + tool configs
-├── requirements.txt               # Pinned runtime dependencies
-├── requirements-dev.txt           # Dev tools (lint, test, type-check)
-├── Makefile                       # One-command operations
-└── .pre-commit-config.yaml        # Format/lint/strip hooks
-```
-
-## Getting Started
-
-### Prerequisites
-
-- **Python 3.11** (see [`.python-version`](.python-version))
-- **Git** for cloning
-- **Quarto** (only needed for PDF report generation): [quarto.org](https://quarto.org/)
-
-### Running the deliverable notebook (evaluator path)
-
-If you only want to read the submission deliverable and re-execute every cell, this is the minimum sequence. All artifacts the notebook consumes (engineered feature matrix, weather parquet, per-fold prediction CSVs, EDA summary numbers, figures) are tracked in the repository, so no raw-data download is required.
+The deliverable notebook ships with outputs pre-rendered and loads tracked artifacts only — no raw-data download required for the evaluator view.
 
 ```bash
-# Clone
 git clone https://github.com/ThierryIshimwe/Energy-Forecasting.git
 cd Energy-Forecasting
-
-# Create + activate a virtual environment
-python -m venv .venv
-.venv\Scripts\activate                 # Windows
-# source .venv/bin/activate            # macOS/Linux
-
-# Install runtime dependencies and the package itself
-pip install -r requirements.txt
-pip install -e .
-
-# Open notebooks/00_main_deliverable.ipynb in Jupyter Lab / VS Code
-# and Run All. Every cell loads from tracked artifacts; no network calls.
+python -m venv .venv && .venv\Scripts\activate          # Windows
+pip install -r requirements.txt && pip install -e .
 ```
 
-To execute the notebook from the command line (CI-style), install `nbconvert` from the dev requirements and run:
+Then open [`notebooks/00_main_deliverable.ipynb`](notebooks/00_main_deliverable.ipynb) in Jupyter Lab or VS Code and *Run All*. To execute from the command line:
 
 ```bash
 pip install -r requirements-dev.txt
@@ -160,62 +28,145 @@ python -m nbconvert --to notebook --execute notebooks/00_main_deliverable.ipynb 
     --output 00_main_deliverable.ipynb --ExecutePreprocessor.timeout=600
 ```
 
-### Regenerating artifacts from the raw UCI data (full-rerun path)
+---
 
-This path is only needed if you want to reproduce the artifacts themselves (rather than just consume them). It downloads the 127 MB UCI source, rebuilds the feature matrix, retrains every model, and re-runs the analysis scripts.
+## Submission artifacts
 
-```bash
-make data         # Download UCI dataset + verify SHA-256 (~130 MB)
-make eda          # Execute the EDA notebook
-make features     # Build the leakage-safe feature matrix
-make tune         # Hyperparameter optimization (slow — runs Optuna)
-make train        # Train all 9 models with best hyperparameters
-make evaluate     # Generate leaderboard + per-fold + segment results
-make report       # Compile the technical report PDF + slides
-make app          # Launch the Streamlit dashboard
+| Artifact | Location | What it contains |
+|---|---|---|
+| Deliverable notebook | [`notebooks/00_main_deliverable.ipynb`](notebooks/00_main_deliverable.ipynb) | End-to-end story: problem, EDA, features, models, leaderboard, DM significance, per-segment, additional work, discussion, reproducibility |
+| 5-page technical report | [`reports/output/technical_report.pdf`](reports/output/technical_report.pdf) | Brief-required PDF |
+| 1–2 slide executive summary | [`reports/output/executive_summary.pptx`](reports/output/executive_summary.pptx) | Brief-required PPT |
+| Executive-summary PDF (preview) | [`reports/output/executive_summary.pdf`](reports/output/executive_summary.pdf) | Landscape PDF of the same content, viewable without PowerPoint |
+
+---
+
+## Headline results
+
+Cross-fold mean MAE (lower is better, ± 1σ across 6 rolling-origin folds):
+
+| Model | MAE | RMSE | MASE |
+|---|---:|---:|---:|
+| **XGBoost + weather** | **0.334 ± 0.07** | 0.46 | 0.55 |
+| XGBoost (baseline) | 0.336 ± 0.07 | 0.47 | 0.57 |
+| GRU | 0.339 ± 0.09 | 0.48 | 0.58 |
+| LSTM | 0.341 ± 0.07 | 0.47 | 0.58 |
+| SARIMA(1,1,1)(1,1,1,24) | 0.345 ± 0.08 | 0.49 | 0.59 |
+| Naive lag-1h | 0.380 ± 0.11 | 0.56 | 0.65 |
+
+**Statistical significance** (Diebold–Mariano, α = 0.05): only XGBoost vs SARIMA is significant (p = 0.022). The top three (XGBoost, GRU, LSTM) are a statistical tie.
+
+---
+
+## Repository structure
+
+```
+energy-forecasting/
+├── conf/base.yaml                    # Single source of truth for the pipeline
+├── data/
+│   ├── raw/                          # UCI source (gitignored; download via scripts/download_data.py)
+│   ├── processed/features.parquet    # Engineered feature matrix (tracked, ~1.4 MB)
+│   └── external/                     # Paris-Montsouris weather parquet (tracked)
+├── notebooks/
+│   ├── 00_main_deliverable.ipynb     # ⭐ Submission deliverable
+│   ├── 01_eda.ipynb                  # EDA process notebook
+│   ├── 02_feature_engineering.ipynb  # Feature build process notebook
+│   └── 03_modeling.ipynb             # Model training process notebook
+├── src/energy_forecasting/           # Installable package
+│   ├── config.py                     # ForecastConfig (loaded from conf/base.yaml)
+│   ├── data/                         # UCI loader + integrity checks
+│   ├── preprocessing/                # Missing-value policy (past-only fill), resampling
+│   ├── features/                     # Leakage-safe feature registry + builders
+│   ├── splits/                       # Rolling-origin CV
+│   ├── models/                       # SARIMA, XGBoost, LSTM, GRU, naive baselines
+│   ├── evaluation/                   # MAE/RMSE/WAPE/sMAPE/MASE + DM test + segments
+│   └── utils/                        # Logging, seeds, atomic I/O
+├── app/                              # Streamlit dashboard (loads saved .joblib models)
+├── scripts/                          # CLI entry points + reproducible build scripts
+├── tests/                            # Unit + integration + leakage tests (64+ tests)
+├── reports/
+│   ├── output/                       # PDF report + PPTX deck (submission artifacts)
+│   ├── figures/                      # Leaderboard, per-segment, AvP plots
+│   └── results/                      # Per-fold prediction + metric CSVs (all tracked)
+├── pyproject.toml
+├── requirements.txt                  # Runtime deps (pinned)
+├── requirements-dev.txt              # Dev tools + report builders (pinned)
+└── README.md                         # this file
 ```
 
-Run `make help` for the full list of targets.
+---
 
-### Reproducibility
+## How leakage is prevented
 
-All artifacts (data, models, metrics, predictions) carry the SHA-256 of the [`base.yaml`](conf/base.yaml) that produced them. A clean clone reproducing this pipeline should yield byte-identical results given:
+The pipeline is leakage-safe by construction. Three guarantees:
 
-- Same Python version (3.11)
-- Same pinned dependencies (`requirements.txt`)
-- Same RNG seed (default `42`, in `reproducibility.seed`)
-- Same source dataset hash (verified at download time)
+1. **Same-timestamp components of the target are excluded.** `Voltage`, `Global_intensity`, `Sub_metering_1/2/3`, and `Global_reactive_power` are registered in [`features/registry.py`](src/energy_forecasting/features/registry.py) with `leakage_safe=False`. The feature pipeline refuses to emit them when `strict_leakage_safe: true` (the default). Verified by [`tests/integration/test_leakage.py`](tests/integration/test_leakage.py).
 
-## Design Principles
+2. **Lag and rolling features use only past observations.** Lags use `Series.shift(N)` with N ≥ 1; rolling features use `Series.shift(1).rolling(W)` so the window at time *t* covers `[t-W, t-1]`. Verified by [`tests/unit/test_baselines.py`](tests/unit/test_baselines.py) and the feature-builder tests.
 
-This project commits to seven principles, documented in detail in [`docs/architecture.md`](docs/architecture.md):
+3. **Missing-value imputation is past-only.** Short gaps (≤3 minutes) are filled with `ffill()` from the last past observation, never with a bilateral blend that would pull from future timestamps. Long gaps remain NaN. Verified by [`tests/unit/test_missing_value_policy.py`](tests/unit/test_missing_value_policy.py).
 
-1. **Leakage safety by construction.** Features carry a `leakage_safe` flag in code, enforced by the registry.
-2. **Single source of truth.** All configuration in [`conf/base.yaml`](conf/base.yaml). No drift across notebooks.
-3. **Designed experiments.** Each model tests a specific hypothesis (linear vs. nonlinear, tabular vs. sequential, etc.).
-4. **Honest by default.** No synthetic data or hardcoded metrics. Every number is computed or labeled as example.
-5. **Reproducible from a cold clone.** `make all` regenerates everything.
-6. **Predictable code.** Aggressive consistency. Type annotations everywhere. One way to do each thing.
-7. **Separation of concerns.** Data, features, models, evaluation, app — each layer has a stable contract.
+---
 
-## Dependencies
+## Pipeline overview
 
-Highlights of the runtime stack (see [`requirements.txt`](requirements.txt) for the full annotated list with version pins):
+```
+Raw UCI (1-min) ─► validate ─► past-only impute ─► resample to hourly
+                                                          ↓
+                                       Leakage-safe feature pipeline
+                                                          ↓
+                              31 engineered features (lags, rolling stats,
+                                 calendar, cyclical, holiday, outage flags)
+                                                          ↓
+                           Rolling-origin CV (6 folds × 30-day validation)
+                                                          ↓
+       ┌─ naive baselines ─ SARIMA ─ XGBoost ─ LSTM ─ GRU ─ Stacking ─┐
+       └────────────── + Weather-augmented XGBoost ────────────────────┘
+                                                          ↓
+                MAE / RMSE / WAPE / sMAPE / MASE  +  Diebold-Mariano
+                                                          ↓
+                         Per-segment analysis  +  Streamlit dashboard
+```
 
-- **Data & I/O:** `pandas`, `numpy`, `pyarrow`, `pyyaml`
-- **Statistical models:** `statsmodels`, `pmdarima`, `scipy`
-- **Machine learning:** `scikit-learn`, `xgboost`
-- **Deep learning:** `torch` (LSTM)
-- **Modern forecasting:** `prophet`
-- **Hyperparameter tuning:** `optuna`
-- **Experiment tracking:** `mlflow`
-- **Visualization:** `matplotlib`, `seaborn`, `plotly`
-- **Calendars:** `holidays` (French national)
-- **App:** `streamlit`
-- **Logging:** `loguru`
+---
 
-Development extras (in [`requirements-dev.txt`](requirements-dev.txt)): `pytest`, `black`, `isort`, `flake8`, `mypy`, `pre-commit`, `nbstripout`.
+## Regenerating artifacts from raw
+
+Only needed to reproduce the artifacts themselves; not needed to read the deliverable.
+
+```bash
+python scripts/download_data.py                           # ~20 MB, SHA-256 verified
+python scripts/build_features.py                   # features.parquet
+.venv/Scripts/python.exe scripts/run_naive_baselines.py   # ~30 sec
+.venv/Scripts/python.exe scripts/run_xgboost.py    # ~1 min
+.venv/Scripts/python.exe scripts/run_sarima.py     # ~14 min
+.venv/Scripts/python.exe scripts/run_lstm_and_gru.py         # ~45 min (LSTM + GRU)
+.venv/Scripts/python.exe scripts/run_xgboost_with_weather.py     # ~1 min
+.venv/Scripts/python.exe scripts/run_stacking.py    # ~30 sec
+.venv/Scripts/python.exe scripts/run_dm_test_and_segments.py      # ~5 sec
+.venv/Scripts/python.exe scripts/build_technical_report.py        # PDF report
+.venv/Scripts/python.exe scripts/build_executive_summary.py       # PPTX deck
+```
+
+Total wall-clock: ~90 minutes (DL dominates).
+
+---
+
+## Reproducibility guarantees
+
+- Python pinned to **3.11** ([`.python-version`](.python-version)).
+- All dependencies version-pinned in [`requirements.txt`](requirements.txt) (runtime) and [`requirements-dev.txt`](requirements-dev.txt) (dev tools + report builders).
+- Global RNG seed = **42** ([`conf/base.yaml`](conf/base.yaml)).
+- Source dataset SHA-256 verified at download ([`scripts/download_data.py`](scripts/download_data.py)).
+- Every artifact carries the content hash of [`conf/base.yaml`](conf/base.yaml).
+- **64+ tests** (`pytest tests/`), including:
+  - [`tests/integration/test_leakage.py`](tests/integration/test_leakage.py) — registry contract
+  - [`tests/unit/test_missing_value_policy.py`](tests/unit/test_missing_value_policy.py) — past-only fill
+  - [`tests/unit/test_splits.py`](tests/unit/test_splits.py) — rolling-origin invariants
+  - [`tests/unit/test_metrics.py`](tests/unit/test_metrics.py) — metric correctness
+
+---
 
 ## License
 
-[MIT](LICENSE) — for educational and research purposes (LUISS Guido Carli × Enel Project Work).
+[MIT](LICENSE) — for educational and research purposes (LUISS × Enel Project Work).

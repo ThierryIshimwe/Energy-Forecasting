@@ -27,9 +27,10 @@ Examples of UNSAFE features (and why):
       load's power factor. Not as direct as intensity, but still
       contemporaneous and unavailable at forecast time.
 
-The original team-member implementation included all three families above as
-features, resulting in MAE of 0.0136 — an artifact of leakage, not a real
-forecasting result. The registry below makes that bug mechanically impossible.
+Including any of the three families above as features makes the model
+reconstruct the target from its own components rather than forecast it — the
+training MAE collapses to near-zero but the model has no operational use.
+The registry below makes that mistake mechanically impossible.
 """
 
 from __future__ import annotations

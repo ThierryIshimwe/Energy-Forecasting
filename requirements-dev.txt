@@ -36,3 +36,14 @@ pre-commit==4.0.1
 nbstripout==0.7.1
 nbconvert==7.17.0
 jupyterlab==4.3.5
+
+# ── Report generation ────────────────────────────────────────────────
+# reportlab:   Pure-Python PDF builder, used by scripts/build_technical_report.py
+#              to produce reports/output/technical_report.pdf without requiring
+#              an external LaTeX or Quarto installation.
+# pypdf:       Page-count and text-extraction smoke tests for the generated PDF.
+# python-pptx: PowerPoint builder, used by scripts/build_executive_summary.py
+#              to produce reports/output/executive_summary.pptx.
+reportlab==4.5.1
+pypdf==5.0.1
+python-pptx==1.0.2
