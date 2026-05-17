@@ -1,11 +1,15 @@
-"""Build the 5-page technical-report PDF from the deliverable artifacts.
+"""Build the technical-report PDF in the structure required by the project rules.
 
-All content is sourced from tracked CSVs and PNGs in reports/. Running this
-script produces reports/output/technical_report.pdf — the brief-mandated
-5-page submission.
+Structure (per the rules document):
+    Title page (1 page)
+    Section 1: Introduction
+    Section 2: Methods (with subsections)
+    Section 3: Results and Discussion (technical + business-value)
+    Section 4: Conclusions
+    Appendix A: Code Description (max 1 page, pseudocode/flowchart)
+    Appendix B: Author Contribution + GenAI Statement (max 1 page)
 
-Run:
-    python scripts/build_technical_report.py
+Output: reports/output/technical_report.pdf
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import cm, inch
+from reportlab.lib.units import cm
 from reportlab.platypus import (
     Image,
     PageBreak,
@@ -35,109 +39,58 @@ FIGURES = ROOT / "reports" / "figures"
 OUT_PDF = ROOT / "reports" / "output" / "technical_report.pdf"
 
 
-# ── Styles ──────────────────────────────────────────────────────────
 def _styles() -> dict[str, ParagraphStyle]:
     base = getSampleStyleSheet()
-    body_size = 8.5
-    out = {
-        "Title": ParagraphStyle(
-            "Title",
-            parent=base["Title"],
-            fontSize=13,
-            leading=15,
-            alignment=TA_CENTER,
-            spaceAfter=3,
-        ),
-        "Authors": ParagraphStyle(
-            "Authors",
-            parent=base["Normal"],
-            fontSize=8.5,
-            leading=10,
-            alignment=TA_CENTER,
-            spaceAfter=2,
-        ),
-        "Meta": ParagraphStyle(
-            "Meta",
-            parent=base["Normal"],
-            fontSize=7.5,
-            leading=9,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor("#444"),
-            spaceAfter=6,
-        ),
-        "H1": ParagraphStyle(
-            "H1",
-            parent=base["Heading1"],
-            fontSize=10.5,
-            leading=12,
-            spaceBefore=5,
-            spaceAfter=2,
-            textColor=colors.HexColor("#1a3552"),
-        ),
-        "H2": ParagraphStyle(
-            "H2",
-            parent=base["Heading2"],
-            fontSize=9.5,
-            leading=11,
-            spaceBefore=3,
-            spaceAfter=1,
-            textColor=colors.HexColor("#1a3552"),
-        ),
-        "Body": ParagraphStyle(
-            "Body",
-            parent=base["Normal"],
-            fontSize=body_size,
-            leading=10.5,
-            alignment=TA_JUSTIFY,
-            spaceAfter=3,
-        ),
-        "BodyLeft": ParagraphStyle(
-            "BodyLeft",
-            parent=base["Normal"],
-            fontSize=body_size,
-            leading=10.5,
-            alignment=TA_LEFT,
-            spaceAfter=3,
-        ),
-        "Caption": ParagraphStyle(
-            "Caption",
-            parent=base["Normal"],
-            fontSize=7,
-            leading=8.5,
-            alignment=TA_CENTER,
-            textColor=colors.HexColor("#666"),
-            spaceAfter=5,
-        ),
-        "Bullet": ParagraphStyle(
-            "Bullet",
-            parent=base["Normal"],
-            fontSize=body_size,
-            leading=10.5,
-            leftIndent=10,
-            bulletIndent=0,
-            alignment=TA_JUSTIFY,
-            spaceAfter=1,
-        ),
+    body = 9
+    return {
+        "TitleBig": ParagraphStyle("TitleBig", parent=base["Title"],
+            fontSize=22, leading=26, alignment=TA_CENTER, spaceAfter=20,
+            textColor=colors.HexColor("#1a3552")),
+        "Subtitle": ParagraphStyle("Subtitle", parent=base["Normal"],
+            fontSize=12, leading=14, alignment=TA_CENTER, spaceAfter=30,
+            textColor=colors.HexColor("#444")),
+        "Authors": ParagraphStyle("Authors", parent=base["Normal"],
+            fontSize=11, leading=14, alignment=TA_CENTER, spaceAfter=4),
+        "Affil": ParagraphStyle("Affil", parent=base["Normal"],
+            fontSize=10, leading=12, alignment=TA_CENTER, spaceAfter=4,
+            textColor=colors.HexColor("#444")),
+        "H1": ParagraphStyle("H1", parent=base["Heading1"],
+            fontSize=12, leading=14, spaceBefore=10, spaceAfter=4,
+            textColor=colors.HexColor("#1a3552")),
+        "H2": ParagraphStyle("H2", parent=base["Heading2"],
+            fontSize=10.5, leading=12, spaceBefore=5, spaceAfter=2,
+            textColor=colors.HexColor("#1a3552")),
+        "Body": ParagraphStyle("Body", parent=base["Normal"],
+            fontSize=body, leading=11.5, alignment=TA_JUSTIFY, spaceAfter=4),
+        "Caption": ParagraphStyle("Caption", parent=base["Normal"],
+            fontSize=7.5, leading=9, alignment=TA_CENTER,
+            textColor=colors.HexColor("#666"), spaceAfter=6),
+        "Bullet": ParagraphStyle("Bullet", parent=base["Normal"],
+            fontSize=body, leading=11.5, leftIndent=10, spaceAfter=2,
+            alignment=TA_JUSTIFY),
+        "Mono": ParagraphStyle("Mono", parent=base["Normal"],
+            fontName="Courier", fontSize=8, leading=10, spaceAfter=4),
+        "Draft": ParagraphStyle("Draft", parent=base["Normal"],
+            fontSize=8.5, leading=11, alignment=TA_LEFT,
+            textColor=colors.HexColor("#a04040"), spaceAfter=4,
+            fontName="Helvetica-Oblique"),
     }
-    return out
 
 
-# ── Helpers ─────────────────────────────────────────────────────────
-def _table_style(header_bg: str = "#1a3552") -> TableStyle:
-    return TableStyle(
-        [
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(header_bg)),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
-            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-            ("ALIGN", (0, 0), (0, -1), "LEFT"),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
-            ("TOPPADDING", (0, 0), (-1, 0), 4),
-            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#888")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f6fa")]),
-        ]
-    )
+def _table_style() -> TableStyle:
+    return TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a3552")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+        ("ALIGN", (0, 0), (0, -1), "LEFT"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+        ("TOPPADDING", (0, 0), (-1, 0), 4),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#888")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+         [colors.white, colors.HexColor("#f3f6fa")]),
+    ])
 
 
 def _para(text: str, style: ParagraphStyle) -> Paragraph:
@@ -148,411 +101,405 @@ def _bullets(items: list[str], style: ParagraphStyle) -> list[Paragraph]:
     return [Paragraph(f"<bullet>&bull;</bullet>&nbsp;{it}", style) for it in items]
 
 
-def _scaled_image(path: Path, max_width: float, max_height: float | None = None) -> Image:
+def _scaled(path: Path, max_w: float, max_h: float) -> Image:
     img = Image(str(path))
     iw, ih = img.imageWidth, img.imageHeight
-    scale = max_width / iw
-    if max_height is not None and ih * scale > max_height:
-        scale = max_height / ih
+    scale = min(max_w / iw, max_h / ih)
     img.drawWidth = iw * scale
     img.drawHeight = ih * scale
     return img
 
 
-# ── Build ───────────────────────────────────────────────────────────
 def build() -> None:
     OUT_PDF.parent.mkdir(parents=True, exist_ok=True)
-    styles = _styles()
+    s = _styles()
     story: list[Any] = []
 
-    # Pre-load the artifacts we need
-    leaderboard = pd.read_csv(RESULTS / "leaderboard.csv")
+    lb = pd.read_csv(RESULTS / "leaderboard.csv")
     dm = pd.read_csv(RESULTS / "dm_test_pvalues.csv", index_col=0)
-    xgb_base = pd.read_csv(RESULTS / "xgboost_fold_results.csv")
-    xgb_wx = pd.read_csv(RESULTS / "xgboost_with_weather_fold_results.csv")
+    base = pd.read_csv(RESULTS / "xgboost_fold_results.csv")
+    wx = pd.read_csv(RESULTS / "xgboost_with_weather_fold_results.csv")
 
-    # ── PAGE 1: Title + Executive Summary ──────────────────────────
+    # ── TITLE PAGE ─────────────────────────────────────────────────
+    story.append(Spacer(1, 4 * cm))
+    story.append(_para("Forecasting Hourly Household Electricity Consumption", s["TitleBig"]))
+    story.append(_para("A Leakage-Safe Comparison of Classical, Tree-Based, and Sequence Models", s["Subtitle"]))
+    story.append(Spacer(1, 1.5 * cm))
+    story.append(_para("<b>Group members</b>", s["Affil"]))
     story.append(_para(
-        "Forecasting Hourly Household Electricity Consumption: "
-        "A Leakage-Safe Comparison of Classical, Tree-Based, and Sequence Models",
-        styles["Title"],
+        "Thierry Ishimwe &nbsp;&middot;&nbsp; "
+        "Linda Carla Zorzoli &nbsp;&middot;&nbsp; "
+        "Mariavittoria Giurato &nbsp;&middot;&nbsp; "
+        "Cesar Dushimimana",
+        s["Authors"],
     ))
-    story.append(_para(
-        "Thierry Ishimwe &nbsp;|&nbsp; Linda Carla Zorzoli &nbsp;|&nbsp; "
-        "Mariavittoria Giurato &nbsp;|&nbsp; Cesar Dushimimana",
-        styles["Authors"],
-    ))
-    story.append(_para(
-        "LUISS Guido Carli &nbsp;&middot;&nbsp; Artificial Intelligence Techniques "
-        "&nbsp;&middot;&nbsp; Industry partner: Enel Global ICT &nbsp;&middot;&nbsp; May 2026",
-        styles["Meta"],
-    ))
-
-    story.append(_para("Executive Summary", styles["H1"]))
-    story.append(_para(
-        "This report compares four model families &mdash; SARIMA, XGBoost, LSTM, and GRU &mdash; "
-        "on the task of forecasting hourly residential electricity consumption "
-        "(UCI <i>Individual Household Electric Power Consumption</i> dataset, Sceaux, France, "
-        "2006&ndash;2010, 2,075,259 minute rows resampled to 34,000 hourly observations). "
-        "The pipeline is leakage-safe by construction: every feature is registered with a "
-        "leakage-safety flag and a written rationale, same-timestamp components of the target "
-        "(<i>Voltage</i>, <i>Global_intensity</i>, sub-metering) are mechanically excluded, "
-        "and short-gap imputation is past-only so no future-derived value can flow into a "
-        "training row. Cross-fold mean MAE for the winning model (XGBoost) is <b>0.336 kW</b>.",
-        styles["Body"],
-    ))
-    story.append(_para(
-        "Seven findings shape the conclusion:",
-        styles["Body"],
-    ))
-    findings = [
-        "<b>XGBoost wins the leaderboard at MAE = 0.336.</b> Its lead is statistically significant "
-        "(Diebold&ndash;Mariano, &alpha; = 0.05) only against SARIMA (p = 0.022). Against LSTM "
-        "(p = 0.33) and GRU (p = 0.42) the difference is within noise &mdash; the top three are a "
-        "statistical tie.",
-        "<b>The four real model families cluster within ~3% MAE</b> (XGBoost 0.336, GRU 0.339, "
-        "LSTM 0.341, SARIMA 0.345). Architecture choice within this band is a near-tie; "
-        "deployment should be driven by non-MAE criteria.",
-        "<b>Peak-hour MAE (18&ndash;21h) is ~2.5&times; trough-hour MAE (03&ndash;06h)</b> for every model. "
-        "XGBoost is best at quiet hours; GRU is slightly better at peak hours &mdash; a real "
-        "operational consideration since peak forecast errors drive imbalance penalties.",
-        "<b>October is the hardest validation month</b> (heating-ramp, MAE &asymp; 0.44); "
-        "<b>August is easiest</b> (the French <i>grandes vacances</i> &mdash; empty household, "
-        "flat consumption, MAE &asymp; 0.22). The pattern is structural, not a single-fold artifact.",
-        "<b>Stacking ensembles do not break the 3% cluster.</b> A ridge meta-learner over the four "
-        "base models edges past every individual model on the held-out fold (0.368 vs 0.368 best "
-        "individual); base-model errors are too correlated for simple linear stacking to help.",
-        "<b>Weather augmentation validates the &quot;input information, not architecture&quot; "
-        "hypothesis.</b> Augmenting XGBoost with four Paris&ndash;Montsouris weather columns "
-        "(temperature, humidity, wind speed, 24h temperature lag) reduces cross-fold MAE "
-        "from 0.336 to 0.334 (&minus;0.77%), with the improvement concentrated on the hardest "
-        "heating-season folds.",
-        "<b>The 1-step-ahead hourly horizon is a methodology benchmark, not the operational target.</b> "
-        "Production day-ahead forecasts at Enel use 24-step horizons made from a fixed daily cutoff. "
-        "The reported MAE values are therefore a lower bound on operationally-realistic difficulty; "
-        "the protocol switch is recorded as future work.",
-    ]
-    story.extend(_bullets(findings, styles["Bullet"]))
-
+    story.append(Spacer(1, 1 * cm))
+    story.append(_para("<b>Course</b><br/>Artificial Intelligence Techniques &mdash; LUISS Guido Carli",
+                        s["Affil"]))
+    story.append(Spacer(1, 0.4 * cm))
+    story.append(_para("<b>Industry partner</b><br/>Enel Global ICT", s["Affil"]))
+    story.append(Spacer(1, 0.4 * cm))
+    story.append(_para("May 2026", s["Affil"]))
     story.append(PageBreak())
 
-    # ── PAGE 2: Problem, Dataset, Methodology ──────────────────────
-    story.append(_para("1. Problem and Dataset", styles["H1"]))
+    # ── SECTION 1: INTRODUCTION ────────────────────────────────────
+    story.append(_para("1. Introduction", s["H1"]))
     story.append(_para(
-        "We forecast hourly <i>Global_active_power</i> (kW) for a single household in Sceaux, "
-        "Paris area, using the UCI <i>Individual Household Electric Power Consumption</i> "
-        "dataset: 2,075,259 minute-level observations from 16 December 2006 to 26 November 2010 "
-        "(47 months, 7 measured variables). The source file is pinned by SHA-256 in "
-        "<font face='Courier' size='8'>conf/base.yaml</font> and is verified on download. "
-        "The 1-minute series is resampled to hourly mean (34,000 hourly rows), aligning with "
+        "This project develops an hourly electricity-consumption forecasting "
+        "pipeline for a single household and uses it to compare four model "
+        "families on a uniform protocol. The case study is the UCI <i>Individual "
+        "Household Electric Power Consumption</i> dataset: 2,075,259 minute-level "
+        "active-power measurements from a household in Sceaux (Paris area), France, "
+        "between December 2006 and November 2010, resampled to hourly mean for "
+        "modelling (34,000 hourly observations). The goal is to forecast next-hour "
+        "<i>Global_active_power</i> in a leakage-safe way and to evaluate four model "
+        "families &mdash; SARIMA, XGBoost, LSTM, GRU &mdash; against three naive "
+        "persistence baselines on six rolling-origin folds.",
+        s["Body"]))
+    story.append(_para(
+        "The headline finding is that all four real model families cluster within "
+        "a 3% MAE band (0.336&ndash;0.345), the top three (XGBoost, GRU, LSTM) are "
+        "statistically indistinguishable under the Diebold&ndash;Mariano test, and "
+        "augmenting the leaderboard winner with four free Paris&ndash;Montsouris "
+        "weather columns reduces cross-fold MAE by 0.77% &mdash; concentrated on "
+        "the heating-season folds where forecasting hurts most. For Enel, the "
+        "implication is that on residential consumption at this resolution, the "
+        "next gain comes from <i>better input information</i>, not from a different "
+        "architecture.",
+        s["Body"]))
+
+    # ── SECTION 2: METHODS ─────────────────────────────────────────
+    story.append(_para("2. Methods", s["H1"]))
+
+    story.append(_para("2.1 Data", s["H2"]))
+    story.append(_para(
+        "The primary source is the UCI dataset cited above, SHA-256-pinned in the "
+        "project configuration and integrity-verified on download. Weather data was "
+        "collected separately from station <b>Paris&ndash;Montsouris</b> (NOAA / "
+        "M&eacute;t&eacute;o-France via the <i>meteostat</i> client), 5.2 km from "
+        "Sceaux &mdash; the closest publicly available station with continuous "
+        "hourly records spanning the full study period. The original 1-minute "
+        "series is resampled to hourly mean so the modelling frequency aligns with "
         "the 1-hour bidding blocks used in European electricity markets.",
-        styles["Body"],
-    ))
-    story.append(_para(
-        "Missingness is 1.25% (25,979 minute rows across 71 distinct gap segments), bimodally "
-        "distributed: 54 short gaps (&le;3 min, 72 minutes total) and 17 long outages "
-        "(&gt;3 min, 25,907 minutes total). The longest single outage spans 5 days in August 2010, "
-        "coinciding with the French summer-vacation period. Short gaps are forward-filled "
-        "from the last past observation (past-only, no future leakage); "
-        "long outages are preserved as NaN with explicit <i>is_outage_gap</i> indicators. After "
-        "hourly resampling, 28 hourly rows (0.08%) retain the outage flag.",
-        styles["Body"],
-    ))
+        s["Body"]))
 
-    story.append(_para("2. Methodology", styles["H1"]))
-    story.append(_para("2.1 Leakage-Safe Feature Engineering", styles["H2"]))
+    story.append(_para("2.2 Pre-processing", s["H2"]))
     story.append(_para(
-        "Every feature is registered in "
-        "<font face='Courier' size='8'>features/registry.py</font> with a leakage-safety flag and "
-        "a written rationale. The pipeline refuses to emit any column marked unsafe when "
-        "<font face='Courier' size='8'>strict_leakage_safe: true</font>. Same-timestamp UCI "
-        "columns that are physical components of the target (<i>Voltage</i>, <i>Global_intensity</i>, "
-        "sub-metering 1/2/3, <i>Global_reactive_power</i>) are registered as unsafe and blocked "
-        "from entering the feature matrix &mdash; they would let the model recover the target "
-        "through <i>P = V&middot;I</i> rather than forecast it. Short-gap imputation uses past-only "
-        "forward-fill in <font face='Courier' size='8'>preprocessing/missing.py</font>, so no "
-        "future observation can leak into a training row through the cleaned series. Two regression "
-        "tests guard the policy &mdash; "
-        "<font face='Courier' size='8'>tests/integration/test_leakage.py</font> (registry contract) "
-        "and <font face='Courier' size='8'>tests/unit/test_missing_value_policy.py</font> "
-        "(past-only fill).",
-        styles["Body"],
-    ))
-    story.append(_para(
-        "The leakage-safe feature matrix has 31 columns across five families: <b>target lags</b> at "
-        "1, 24, and 168 hours (one hour, one day, one week back); <b>rolling statistics</b> "
-        "(mean, std, min, max) over 3, 24, and 168-hour windows of the lag-1-shifted target "
-        "&mdash; the <i>shift</i>-then-<i>roll</i> order guarantees the window at time <i>t</i> "
-        "covers strictly past values; <b>calendar features</b> (hour, day-of-week, month, "
-        "<i>is_weekend</i>, <i>is_french_holiday</i>); <b>cyclical encodings</b> "
-        "(<i>sin</i>/<i>cos</i> of hour, dow, month) so trees can handle the wraparound at "
-        "midnight and end-of-week; and <b>outage indicators</b>.",
-        styles["Body"],
-    ))
+        "Raw missingness is 1.25% (25,979 minute rows across 71 distinct gap "
+        "segments), bimodally distributed: 54 short gaps (&le;3 min, 72 minutes "
+        "total) and 17 long outages (&gt;3 min, 25,907 minutes total). The longest "
+        "single outage spans 5 days in August 2010, coinciding with the French "
+        "summer-vacation period. <b>Short gaps are forward-filled</b> from the last "
+        "past observation; <b>long outages are preserved as NaN</b> with explicit "
+        "<i>is_outage_gap</i> indicators so models can see the outage rather than "
+        "be silently fed an imputed value. Forward-only fill is essential: a "
+        "bilateral interpolation would pull from future timestamps and leak "
+        "information through downstream lag and rolling features.",
+        s["Body"]))
 
-    story.append(_para("2.2 Evaluation Protocol", styles["H2"]))
+    story.append(_para("2.3 Feature engineering", s["H2"]))
     story.append(_para(
-        "Rolling-origin cross-validation, 6 folds, each fold trains on 365 days and validates "
-        "on the following 30 days. The folds slide forward in 30-day increments; validation "
-        "never overlaps training and earlier folds never see later data. Each model is fit from "
-        "scratch per fold. The protocol is <b>1-step-ahead at hourly resolution</b>: at validation "
-        "hour <i>t</i>, the model predicts <i>y[t]</i> using information available through "
-        "<i>t&minus;1</i>. Metrics computed per fold: MAE (primary), RMSE, WAPE, sMAPE, "
-        "MASE (with seasonal period 24 for the daily-naive denominator).",
-        styles["Body"],
-    ))
-    story.append(_para(
-        "True 24-step-ahead day-ahead forecasting &mdash; the horizon that matches Enel's market-bid "
-        "block &mdash; is listed as future work; the reported MAE values are therefore a lower bound "
-        "on the operationally-realistic difficulty.",
-        styles["Body"],
-    ))
+        "The feature matrix is <b>leakage-safe by construction</b>. Every feature "
+        "is registered with a <i>leakage_safe</i> flag and a written rationale; the "
+        "pipeline refuses to emit any column flagged unsafe. Six UCI columns "
+        "(<i>Voltage</i>, <i>Global_intensity</i>, <i>Global_reactive_power</i>, "
+        "<i>Sub_metering_1/2/3</i>) are mechanically excluded because they are "
+        "same-timestamp physical components of the target (<i>P = V&middot;I</i>; "
+        "sub-meters sum into the total active power) &mdash; using them would let "
+        "the model reconstruct the target rather than forecast it. The matrix has "
+        "<b>31 leakage-safe features</b> in five families: target lags at 1, 24, "
+        "168 h; rolling statistics (mean / std / min / max) over 3, 24, 168 h "
+        "windows computed as <i>shift(1).rolling(W)</i> so the window covers "
+        "strictly past values; calendar features (hour, day-of-week, month, "
+        "<i>is_weekend</i>, <i>is_french_holiday</i>); cyclical sine/cosine "
+        "encodings of the calendar dimensions; and outage indicators.",
+        s["Body"]))
 
-    story.append(PageBreak())
-
-    # ── PAGE 3: Models + Leaderboard + DM ──────────────────────────
-    story.append(_para("3. Model Lineup", styles["H1"]))
+    story.append(_para("2.4 Models considered", s["H2"]))
     story.append(_para(
-        "The lineup spans four model families. Each was selected to test a distinct hypothesis "
-        "about which class of structure dominates the signal.",
-        styles["Body"],
-    ))
+        "Eight models span four families. Each is selected to test a distinct "
+        "hypothesis about which class of structure dominates the signal.",
+        s["Body"]))
     model_rows = [
         ["Model", "Family", "Role"],
-        ["naive_lag_{1h, 24h, 168h}", "Persistence baselines", "Floors for daily / weekly seasonality"],
-        ["SARIMA(1,1,1)(1,1,1,24)", "Classical statistical", "Satisfies brief's ≥1 classical requirement"],
-        ["LSTM (168h lookback, 64 units)", "Deep-learning sequence", "Satisfies brief's ≥1 DL requirement"],
-        ["GRU (168h lookback, 64 units)", "Deep-learning sequence", "Within-family DL comparison"],
-        ["XGBoost (depth=6, lr=0.05, n=500)", "Gradient-boosted trees", "Tabular model with 31 engineered features"],
-        ["Stacking (ridge α=1.0)", "Ensemble (bonus)", "Tests base-model error decorrelation"],
+        ["3 naive baselines (lag-1h, -24h, -168h)", "Persistence", "Brief: baselines for comparison"],
+        ["SARIMA(1,1,1)(1,1,1,24)", "Classical statistical", "Brief: ≥1 classical model"],
+        ["LSTM (168h lookback, 64 units)", "Deep-learning sequence", "Brief: ≥1 DL model"],
+        ["GRU (168h lookback, 64 units)", "Deep-learning sequence", "Additional: within-DL comparison"],
+        ["XGBoost (depth=6, lr=0.05, n=500)", "Gradient-boosted trees", "Additional: 4th family, transparent feature importance"],
+        ["Stacking (ridge α=1.0)", "Ensemble", "Additional: tests base-model error decorrelation"],
+        ["XGBoost + 4 weather features", "Tree + exogenous", "Additional: tests input-information bottleneck"],
     ]
-    tbl = Table(model_rows, colWidths=[5.0 * cm, 4.0 * cm, 8.0 * cm])
-    tbl.setStyle(_table_style())
-    story.append(tbl)
-    story.append(Spacer(1, 6))
-
-    story.append(_para("4. Results", styles["H1"]))
-    story.append(_para("4.1 Leaderboard", styles["H2"]))
-    story.append(_scaled_image(FIGURES / "leaderboard_bar.png", max_width=15 * cm, max_height=7 * cm))
-    story.append(_para(
-        "Figure 1. Cross-fold mean MAE per model with ±1σ error bars across the six "
-        "rolling-origin folds. Red bars are naive persistence baselines; blue bars are the "
-        "real model families. Dashed line marks the lag-1h persistence floor (0.380).",
-        styles["Caption"],
-    ))
-
-    lb_table = [["Model", "MAE", "RMSE", "MASE"]]
-    name_map = {
-        "xgb_default": "XGBoost",
-        "gru_default": "GRU",
-        "lstm_default": "LSTM",
-        "sarima_111_111_24": "SARIMA",
-        "naive_lag_1h": "Naive lag-1h",
-        "naive_lag_24h_daily": "Naive lag-24h",
-        "naive_lag_168h_weekly": "Naive lag-168h",
-    }
-    for _, row in leaderboard.iterrows():
-        lb_table.append([
-            name_map.get(row["model"], row["model"]),
-            f"{row['MAE_mean']:.3f} ± {row['MAE_std']:.3f}",
-            f"{row['RMSE_mean']:.3f} ± {row['RMSE_std']:.3f}",
-            f"{row['MASE_mean']:.3f} ± {row['MASE_std']:.3f}",
-        ])
-    t = Table(lb_table, colWidths=[4.0 * cm, 4.0 * cm, 4.0 * cm, 4.0 * cm])
+    t = Table(model_rows, colWidths=[5.6 * cm, 3.6 * cm, 7.4 * cm])
     t.setStyle(_table_style())
     story.append(t)
-    story.append(_para(
-        "Table 1. Cross-fold mean ± std for each model. Lower is better. XGBoost wins on MAE; "
-        "all four real models cluster within 3% of each other.",
-        styles["Caption"],
-    ))
+    story.append(_para("Table 1. Model lineup with role tags. <i>Brief</i> items satisfy the "
+                       "project requirements directly; <i>Additional</i> items go beyond the "
+                       "minimum with the value they add stated inline.", s["Caption"]))
 
-    story.append(_para("4.2 Statistical Significance &mdash; Diebold&ndash;Mariano Test", styles["H2"]))
+    story.append(_para("2.5 Hyperparameter choices", s["H2"]))
     story.append(_para(
-        "Pairwise Diebold&ndash;Mariano tests on absolute-error loss between the four real models, "
-        "using the Harvey&ndash;Leybourne&ndash;Newbold small-sample correction and Newey&ndash;West HAC variance "
-        "at lag 0 (appropriate for 1-step-ahead forecasts). Two-sided p-values:",
-        styles["Body"],
-    ))
-    dm_table = [["", "XGBoost", "SARIMA", "LSTM", "GRU"]]
-    for row in ["xgboost", "sarima", "lstm", "gru"]:
-        r = [row.upper()]
-        for col in ["xgboost", "sarima", "lstm", "gru"]:
-            v = dm.loc[row, col]
-            r.append("—" if pd.isna(v) else f"{v:.3f}")
-        dm_table.append(r)
-    t = Table(dm_table, colWidths=[2.6 * cm, 2.6 * cm, 2.6 * cm, 2.6 * cm, 2.6 * cm])
-    t.setStyle(_table_style())
-    story.append(t)
-    story.append(_para(
-        "Table 2. DM two-sided p-values, n &asymp; 4,100 paired predictions. Only XGBoost vs "
-        "SARIMA (p = 0.022) clears the &alpha; = 0.05 bar. XGBoost vs LSTM (p = 0.33) and XGBoost "
-        "vs GRU (p = 0.42) are not statistically distinguishable.",
-        styles["Caption"],
-    ))
+        "Hyperparameters are documented defaults consistent with the published "
+        "literature for each model family: SARIMA order chosen from ADF / KPSS "
+        "stationarity tests (<i>d=1</i>) plus STL decomposition (<i>m=24</i>); "
+        "XGBoost depth 6, learning rate 0.05, 500 estimators; LSTM and GRU with a "
+        "single recurrent layer of 64 hidden units over a 168-hour lookback, Adam "
+        "optimizer, 25 epochs. Each fold trains a fresh model with these settings "
+        "&mdash; no global tuning loop runs across folds (which would introduce "
+        "cross-fold information leakage). Within-fold validation is implicit in "
+        "the 365-day training window.",
+        s["Body"]))
 
+    story.append(_para("2.6 Evaluation protocol", s["H2"]))
+    story.append(_para(
+        "<b>Rolling-origin cross-validation</b>, 6 folds, each fold trains on 365 "
+        "days and validates on the following 30 days. Folds slide forward in 30-day "
+        "increments; validation never overlaps training and earlier folds never see "
+        "later data. Each model is fit from scratch per fold. The protocol is "
+        "<b>1-step-ahead at hourly resolution</b>: at validation hour <i>t</i>, the "
+        "model predicts <i>y[t]</i> using information available through <i>t&minus;1</i>. "
+        "Metrics: MAE (primary, robust to the right-skewed target), RMSE (peak-error "
+        "guardrail), WAPE, sMAPE, and MASE with seasonal period 24 (a MASE below 1 "
+        "means the model beats the in-sample daily-naive baseline).",
+        s["Body"]))
+
+    story.append(_para("2.7 Baselines", s["H2"]))
+    story.append(_para(
+        "Three persistence baselines anchor the leaderboard. <i>naive_lag_1h</i> "
+        "predicts <i>y[t] = y[t&minus;1]</i> (hour-to-hour persistence); "
+        "<i>naive_lag_24h</i> predicts yesterday-at-this-hour; <i>naive_lag_168h</i> "
+        "predicts last-week-at-this-hour. They establish the floor any real model "
+        "must beat to deserve a place in the report.",
+        s["Body"]))
     story.append(PageBreak())
 
-    # ── PAGE 4: Per-Segment + Weather + External Context ───────────
-    story.append(_para("4.3 Per-Segment Performance", styles["H1"]))
-    story.append(_scaled_image(FIGURES / "segment_mae_by_dimension.png",
-                               max_width=15 * cm, max_height=10 * cm))
-    story.append(_para(
-        "Figure 2. MAE decomposed by hour-of-day, day-of-week, and month for each of the four "
-        "real models. Aggregate MAE hides operationally important structure.",
-        styles["Caption"],
-    ))
-    story.append(_para(
-        "<b>Hour of day.</b> Every model exhibits the same shape: easy at 03&ndash;06h "
-        "(MAE &asymp; 0.17), hard at 18&ndash;21h (MAE &asymp; 0.45). XGBoost wins quiet hours; "
-        "GRU is slightly better at peak hours. <b>Day of week.</b> Weekend MAE is ~5% higher than "
-        "weekday &mdash; modest. <b>Month.</b> August is by far the easiest validation month "
-        "(MAE 0.21&ndash;0.25, the empty-household <i>grandes vacances</i>); October is the "
-        "hardest (0.42&ndash;0.44, the regulated <i>p&eacute;riode de chauffe</i> heating ramp).",
-        styles["Body"],
-    ))
+    # ── SECTION 3: RESULTS AND DISCUSSION ──────────────────────────
+    story.append(_para("3. Results and Discussion", s["H1"]))
 
-    story.append(_para("4.4 Weather Data as Exogenous Regressor", styles["H1"]))
+    story.append(_para("3.1 Technical results", s["H2"]))
+    story.append(_scaled(FIGURES / "leaderboard_bar.png", 15 * cm, 6.5 * cm))
+    story.append(_para("Figure 1. Cross-fold mean MAE per model with &plusmn;1&sigma; error "
+                       "bars across the six rolling-origin folds. Red bars are persistence "
+                       "baselines; blue bars are the real model families.", s["Caption"]))
+
+    lb_rows = [["Model", "MAE", "RMSE", "MASE"]]
+    name = {"xgb_default": "XGBoost", "gru_default": "GRU", "lstm_default": "LSTM",
+            "sarima_111_111_24": "SARIMA",
+            "naive_lag_1h": "Naive lag-1h",
+            "naive_lag_24h_daily": "Naive lag-24h",
+            "naive_lag_168h_weekly": "Naive lag-168h"}
+    for _, r in lb.iterrows():
+        lb_rows.append([name.get(r["model"], r["model"]),
+                        f"{r['MAE_mean']:.3f} ± {r['MAE_std']:.3f}",
+                        f"{r['RMSE_mean']:.3f} ± {r['RMSE_std']:.3f}",
+                        f"{r['MASE_mean']:.3f} ± {r['MASE_std']:.3f}"])
+    t = Table(lb_rows, colWidths=[4 * cm, 4 * cm, 4 * cm, 4 * cm])
+    t.setStyle(_table_style())
+    story.append(t)
+    story.append(_para("Table 2. Leaderboard, cross-fold mean &plusmn; std. The four real "
+                       "model families cluster within 3% MAE.", s["Caption"]))
+
     story.append(_para(
-        "To test the &quot;input information, not architecture&quot; hypothesis empirically, "
-        "we retrained XGBoost on the feature matrix augmented with four hourly weather columns "
-        "from station Paris&ndash;Montsouris (5.2 km from Sceaux, via the <i>meteostat</i> client): "
-        "temperature (&deg;C), relative humidity (%), wind speed (km/h), and a strictly past "
+        "<i>(Additional: Diebold&ndash;Mariano significance test.)</i> A pairwise "
+        "Diebold&ndash;Mariano test with the Harvey&ndash;Leybourne&ndash;Newbold "
+        "small-sample correction was run between the four real model families on "
+        "<i>n</i> &asymp; 4,100 paired predictions. Only <b>XGBoost vs SARIMA "
+        "(p = 0.022)</b> clears the &alpha; = 0.05 bar. XGBoost vs LSTM (p = 0.33) "
+        "and XGBoost vs GRU (p = 0.42) are not statistically distinguishable &mdash; "
+        "the top three are a statistical tie. The added value of the DM test is "
+        "that it answers a question MAE alone cannot: whether the leaderboard order "
+        "is real or within noise.",
+        s["Body"]))
+
+    story.append(_para(
+        "<i>(Additional: per-segment analysis.)</i> MAE decomposed by hour-of-day, "
+        "day-of-week, and validation month surfaces operationally important "
+        "structure that aggregate MAE hides. Every model shares the same hour-of-day "
+        "shape (easy at 03&ndash;06h with MAE &asymp; 0.17, hard at 18&ndash;21h "
+        "with MAE &asymp; 0.45); XGBoost wins quiet hours and GRU wins peak hours. "
+        "The monthly pattern is dominated by the <i>grandes vacances</i> (August, "
+        "MAE 0.21&ndash;0.25, empty household) and the regulated <i>p&eacute;riode "
+        "de chauffe</i> (October, MAE 0.42&ndash;0.44, heating ramp).",
+        s["Body"]))
+    story.append(_scaled(FIGURES / "segment_mae_by_dimension.png", 15 * cm, 9 * cm))
+    story.append(_para("Figure 2. Per-segment MAE by model.", s["Caption"]))
+
+    story.append(_para(
+        "<i>(Additional: weather augmentation.)</i> XGBoost was retrained on the "
+        "feature matrix augmented with four hourly Paris&ndash;Montsouris weather "
+        "columns: temperature, relative humidity, wind speed, and a strictly past "
         "24-hour-lagged temperature. Per-fold result:",
-        styles["Body"],
-    ))
-    wx_table = [["Fold", "Baseline MAE", "+Weather MAE", "Δ MAE", "Δ %"]]
-    for i in range(len(xgb_base)):
-        b = xgb_base["MAE"].iloc[i]
-        w = xgb_wx["MAE"].iloc[i]
-        delta = w - b
-        pct = delta / b * 100
-        wx_table.append([
-            f"{int(xgb_base['fold'].iloc[i])}",
-            f"{b:.4f}",
-            f"{w:.4f}",
-            f"{delta:+.4f}",
-            f"{pct:+.2f}%",
-        ])
-    wx_table.append([
-        "<b>Mean</b>",
-        f"<b>{xgb_base['MAE'].mean():.4f}</b>",
-        f"<b>{xgb_wx['MAE'].mean():.4f}</b>",
-        f"<b>{xgb_wx['MAE'].mean() - xgb_base['MAE'].mean():+.4f}</b>",
-        f"<b>{(xgb_wx['MAE'].mean() - xgb_base['MAE'].mean()) / xgb_base['MAE'].mean() * 100:+.2f}%</b>",
-    ])
-    t = Table(wx_table, colWidths=[2.0 * cm, 3.5 * cm, 3.5 * cm, 3.0 * cm, 3.0 * cm])
+        s["Body"]))
+    wx_rows = [["Fold", "Baseline MAE", "+Weather MAE", "Δ MAE", "Δ %"]]
+    for i in range(len(base)):
+        b = base["MAE"].iloc[i]; w = wx["MAE"].iloc[i]
+        d = w - b; p = d / b * 100
+        wx_rows.append([f"{int(base['fold'].iloc[i])}", f"{b:.4f}", f"{w:.4f}",
+                        f"{d:+.4f}", f"{p:+.2f}%"])
+    wx_rows.append(["<b>Mean</b>", f"<b>{base['MAE'].mean():.4f}</b>",
+                    f"<b>{wx['MAE'].mean():.4f}</b>",
+                    f"<b>{wx['MAE'].mean() - base['MAE'].mean():+.4f}</b>",
+                    f"<b>{(wx['MAE'].mean() - base['MAE'].mean()) / base['MAE'].mean() * 100:+.2f}%</b>"])
+    t = Table(wx_rows, colWidths=[2 * cm, 3.5 * cm, 3.5 * cm, 3 * cm, 3 * cm])
     t.setStyle(_table_style())
     story.append(t)
-    story.append(_para(
-        "Table 3. XGBoost with vs without four weather features. The mean MAE delta is small "
-        "(&minus;0.77%) but signed in the predicted direction and concentrated on the harder folds: "
-        "the late-winter / spring / October-heating-ramp windows show the larger gains, while "
-        "the easy summer fold (1) gains little &mdash; consistent with weather mattering when "
-        "consumption is temperature-driven, not when the household is flat-line.",
-        styles["Caption"],
-    ))
+    story.append(_para("Table 3. Weather-augmented XGBoost vs baseline XGBoost. The "
+                       "&minus;0.77% mean is small but signed in the predicted direction; "
+                       "the improvement concentrates on heating-season folds (2, 3, 4, 5, 6).",
+                       s["Caption"]))
 
-    story.append(_para("5. External Context", styles["H1"]))
+    story.append(_para("3.2 Project-oriented (business-value) implications", s["H2"]))
     story.append(_para(
-        "Several empirical patterns map onto documented French and European context. The longest "
-        "outage (17&ndash;22 August 2010) and the &quot;August is easiest&quot; finding both reflect "
-        "the institutionalised summer vacation that INSEE and RTE document accounts for a "
-        "national consumption drop of 15&ndash;20%. The January 2010 outage (12&ndash;14 January) "
-        "coincides with a European cold wave during which RTE's <i>Bilan &Eacute;lectrique 2010</i> "
-        "records French national load exceeding 96 GW for the first time, driven by the country's "
-        "~30% electric-heating penetration. October's role as the hardest validation month is "
-        "explained by the regulated <i>p&eacute;riode de chauffe</i> beginning 15 October each "
-        "year, after which RTE documents typical residential consumption rising 40&ndash;60% "
-        "between mid-October and mid-November.",
-        styles["Body"],
-    ))
-
+        "For Enel Global ICT, three implications follow from the technical results:",
+        s["Body"]))
+    impls = [
+        "<b>Architecture choice is a near-decision on this dataset.</b> XGBoost / "
+        "GRU / LSTM are statistically tied. Choosing among them should be driven "
+        "by non-MAE factors &mdash; inference latency, retraining cost, "
+        "interpretability, and peak-hour accuracy (a real driver of imbalance-market "
+        "penalties for grid operators).",
+        "<b>Peak-hour accuracy and overall MAE rank models differently.</b> XGBoost "
+        "minimises overall MAE but GRU minimises 18&ndash;21h MAE. A deployment "
+        "weighted toward peak-hour cost should prefer GRU; one weighted toward "
+        "overall accuracy can keep XGBoost. The aggregate leaderboard hides this "
+        "trade-off &mdash; per-segment analysis surfaces it.",
+        "<b>Free weather data yields a real but modest improvement.</b> Four "
+        "Paris&ndash;Montsouris columns reduce XGBoost MAE by 0.77% with the "
+        "improvement concentrated on heating-season folds. For a fleet-level "
+        "residential forecast this is a non-trivial reduction in imbalance-market "
+        "exposure during winter. The deeper implication is that <i>better input "
+        "information</i> &mdash; richer weather features, occupancy proxies, "
+        "calendar-aware regressors for SARIMA &mdash; is where additional gains live, "
+        "not in trying new model architectures.",
+    ]
+    story.extend(_bullets(impls, s["Bullet"]))
     story.append(PageBreak())
 
-    # ── PAGE 5: Discussion + Future + Reproducibility ──────────────
-    story.append(_para("6. Discussion", styles["H1"]))
-    story.append(_para(
-        "<b>Architecture matters less than engineering protocol.</b> Four model families &mdash; "
-        "classical SARIMA, tree-based XGBoost, sequence DL LSTM and GRU &mdash; cluster within 3% "
-        "MAE, and the within-cluster differences are statistically indistinguishable. This is "
-        "consistent with M-competition findings that on data-rich forecasting problems, feature "
-        "engineering and evaluation discipline dominate architecture choice. The stacking-ensemble "
-        "result corroborates this: base-model errors are correlated enough that linear combination "
-        "does not help &mdash; ruling out &quot;more model variety&quot; as the path forward.",
-        styles["Body"],
-    ))
-    story.append(_para(
-        "<b>The &quot;best&quot; model depends on the operational metric.</b> XGBoost wins overall "
-        "MAE but GRU wins peak-hour (18&ndash;21h) MAE. For a grid operator whose cost function "
-        "weights peak-hour accuracy heavily &mdash; a real concern since peak forecast errors "
-        "drive imbalance penalties &mdash; GRU is the more defensible deployment choice "
-        "despite XGBoost's leaderboard lead. This nuance is hidden by an aggregate MAE.",
-        styles["Body"],
-    ))
-    story.append(_para(
-        "<b>GRU is competitive with LSTM at lower complexity.</b> Across all six folds, GRU's MAE "
-        "(0.339) is essentially tied with LSTM's (0.341). The extra output gate in LSTM is unused "
-        "capacity on this dataset; GRU is a reasonable default when adding a sequence-DL model to "
-        "a forecasting pipeline.",
-        styles["Body"],
-    ))
-    story.append(_para(
-        "<b>Weather augmentation: small but real, where it matters.</b> A &minus;0.77% MAE gain on "
-        "XGBoost from four free Paris&ndash;Montsouris weather columns is modest, but signed in the "
-        "predicted direction and concentrated on heating-season folds. It validates the direction "
-        "of the priority claim &mdash; better input information is closer to the leaderboard "
-        "ceiling than another architecture would bring us &mdash; without overclaiming a "
-        "transformative gain.",
-        styles["Body"],
-    ))
-
-    story.append(_para("7. Future Work", styles["H1"]))
-    future = [
-        "<b>Extend the weather-augmented matrix to SARIMA, LSTM, and GRU.</b> The augmented feature "
-        "matrix is already persisted at "
-        "<font face='Courier' size='8'>data/processed/features_with_weather.parquet</font>. The "
-        "missing work is ~70 min of model retraining. Expected to confirm whether the &minus;0.77% "
-        "XGBoost gain is single-model-specific or a team-wide improvement.",
-        "<b>Implement 24-step-ahead day-ahead forecasting.</b> Current results are 1-step-ahead at "
-        "hourly resolution. Production day-ahead forecasts at Enel use 24-step horizons made once "
-        "per day from a fixed daily cutoff; the reported MAE values are a lower bound on "
-        "operationally-realistic difficulty.",
+    # ── SECTION 4: CONCLUSIONS ─────────────────────────────────────
+    story.append(_para("4. Conclusions", s["H1"]))
+    takeaways = [
+        "<b>The pipeline is leakage-safe by construction.</b> A feature registry "
+        "mechanically excludes same-timestamp components of the target; short-gap "
+        "imputation is past-only; two regression tests guard both policies on every "
+        "commit.",
+        "<b>XGBoost wins the leaderboard at cross-fold MAE 0.336</b>, beating SARIMA "
+        "significantly (Diebold&ndash;Mariano p = 0.022) but not beating LSTM "
+        "(p = 0.33) or GRU (p = 0.42). The top three are statistically tied.",
+        "<b>GRU is competitive with LSTM at lower complexity.</b> Across all six "
+        "folds, GRU's MAE (0.339) is essentially tied with LSTM's (0.341). The "
+        "simpler cell captures the relevant sequential structure as well.",
+        "<b>Stacking confirms the bottleneck is input information, not model "
+        "variety.</b> A ridge ensemble over the four base models does not break the "
+        "3% cross-fold cluster &mdash; base-model errors are too correlated.",
+        "<b>Weather augmentation validates the &quot;input information&quot; "
+        "hypothesis empirically.</b> Adding four weather columns to XGBoost reduces "
+        "cross-fold MAE by 0.77%, concentrated on the heating-season folds.",
+        "<b>Operationally, the best model depends on the metric.</b> XGBoost wins "
+        "overall MAE; GRU wins peak-hour MAE. A grid operator weighting peak-hour "
+        "accuracy heavily should prefer GRU.",
     ]
-    story.extend(_bullets(future, styles["Bullet"]))
+    story.extend(_bullets(takeaways, s["Bullet"]))
 
-    story.append(_para("8. Reproducibility", styles["H1"]))
+    # ── APPENDIX A: CODE DESCRIPTION ───────────────────────────────
+    story.append(PageBreak())
+    story.append(_para("Appendix A &mdash; Code Description", s["H1"]))
     story.append(_para(
-        "Every result above is reproducible from a fresh clone of "
-        "<i>github.com/ThierryIshimwe/Energy-Forecasting</i>. The deliverable notebook "
-        "(<font face='Courier' size='8'>notebooks/00_main_deliverable.ipynb</font>) loads "
-        "tracked artifacts only and ships with outputs pre-rendered, so an evaluator needs three "
-        "commands: clone, "
-        "<font face='Courier' size='8'>pip install -r requirements.txt &amp;&amp; pip install -e .</font>, "
-        "open the notebook. No raw-data download is needed for the deliverable view; "
-        "the EDA summary numbers and seasonality plot data are precomputed and tracked.",
-        styles["Body"],
-    ))
-    story.append(_para(
-        "Pipeline guarantees: Python 3.11 pinned in "
-        "<font face='Courier' size='8'>.python-version</font>; all dependencies version-pinned "
-        "in <font face='Courier' size='8'>requirements.txt</font>; global RNG seed 42 in "
-        "<font face='Courier' size='8'>conf/base.yaml</font>; source dataset SHA-256 verified at "
-        "download; 64+ unit + integration tests, including the leakage-registry test and the "
-        "past-only-imputation test, run on every commit. Re-training every model from raw data "
-        "takes ~90 minutes and is documented in <i>README.md</i>.",
-        styles["Body"],
-    ))
+        "The source code in <b>src.zip</b> is organised as numbered scripts run in "
+        "order, with a supporting Python package. Pseudocode of the end-to-end "
+        "pipeline:",
+        s["Body"]))
+    pseudo = """
+01_build_features.py
+    raw = load_uci('data/raw/data.txt')
+    short_gaps, long_gaps = classify_missing(raw)
+    cleaned = forward_fill(raw, max_gap=3 min)        # past-only
+    hourly  = resample(cleaned, '1h', mean)
+    features = build(target=hourly.Global_active_power,
+                     lags=[1,24,168],
+                     rolling=[3,24,168],
+                     calendar=['hour','dow','month','is_weekend','is_french_holiday'],
+                     cyclical=['hour','dow','month'])  # sin/cos
+    save(features, 'data/features.parquet')
 
-    # ── Build the document ─────────────────────────────────────────
+02_fetch_weather.py
+    weather = meteostat.Hourly('07156', start, end).fetch()  # Paris-Montsouris
+    save(weather[['temp','rhum','wspd']] + lag24(temp),
+         'data/paris_montsouris_weather.parquet')
+
+04..08  run_<model>.py
+    for fold in rolling_origin_splits(features.index, n=6, valid_days=30):
+        Xt, yt = features.loc[fold.train], target.loc[fold.train]
+        Xv, yv = features.loc[fold.valid], target.loc[fold.valid]
+        model = <FAMILY>Forecaster(**hyperparams)
+        model.fit(Xt, yt)
+        preds = model.predict_one_step_ahead(Xv)
+        save(preds, f'results/<model>_predictions_fold{fold.id}.csv')
+        save(metrics(yv, preds), f'results/<model>_fold_results.csv')
+
+09_run_stacking.py
+    base = load_predictions(['xgboost','sarima','lstm','gru'], folds=1..5)
+    meta = Ridge(alpha=1.0).fit(base.X, base.y)
+    eval(meta, predictions(folds=6))
+
+10_run_dm_test_and_segments.py
+    p_values = pairwise_dm_test(predictions_folds_1_6)
+    segment_mae = group_by(['hour','dow','month'], MAE)
+    save(p_values, 'results/dm_test_pvalues.csv')
+
+11_aggregate_leaderboard.py
+    combine fold_results CSVs -> mean +- std per model -> results/leaderboard.csv
+
+12_build_technical_report.py / 13_build_presentation.py
+    load tracked artifacts, render PDF / PPTX
+"""
+    for line in pseudo.strip().split("\n"):
+        story.append(_para(line.replace(" ", "&nbsp;"), s["Mono"]))
+
+    # ── APPENDIX B: CONTRIBUTION + GENAI ───────────────────────────
+    story.append(PageBreak())
+    story.append(_para("Appendix B &mdash; Author Contribution and Generative AI Statement",
+                        s["H1"]))
+
+    story.append(_para("B.1 Author contribution (CRediT) &mdash; <i>DRAFT</i>", s["H2"]))
+    story.append(_para(
+        "<i>Draft.</i> Using the CRediT taxonomy, contributions across the four "
+        "authors are as follows:",
+        s["Draft"]))
+    credit = [
+        "<b>Linda Carla Zorzoli &amp; Mariavittoria Giurato</b> &mdash; "
+        "<i>Investigation</i> (exploratory data analysis), <i>Resources</i> "
+        "(research on documented French / European events explaining the dataset "
+        "outages), <i>Validation</i> (review of the submission materials against "
+        "the project rules).",
+        "<b>Thierry Ishimwe &amp; Cesar Dushimimana</b> &mdash; "
+        "<i>Methodology</i> and <i>Software</i> (feature engineering, modelling, "
+        "evaluation pipeline, reporting tooling); <i>Writing &mdash; original draft</i> "
+        "and <i>Writing &mdash; review &amp; editing</i>.",
+        "<b>Conceptualization</b> and <b>Project administration</b> were shared "
+        "across all four authors.",
+    ]
+    story.extend(_bullets(credit, s["Bullet"]))
+
+    story.append(_para("B.2 Generative AI Statement &mdash; <i>DRAFT</i>", s["H2"]))
+    story.append(_para(
+        "<i>Draft.</i> We used Anthropic&apos;s Claude during development for: "
+        "<b>(a) extensive leakage checking</b> &mdash; auditing the feature "
+        "pipeline for same-timestamp target components, verifying that lag and "
+        "rolling features are strictly past-only, and surfacing the bilateral-"
+        "interpolation leak in the missing-value policy which we then fixed; "
+        "<b>(b)</b> brainstorming the registry-based leakage-prevention design and "
+        "the past-only-fill regression test; <b>(c)</b> reviewing wording across "
+        "the notebook, this technical report, and the presentation. All "
+        "AI-generated code was reviewed, executed, and validated against tests. "
+        "All design decisions and final wording are owned and understood by the "
+        "authors.",
+        s["Draft"]))
+
     doc = SimpleDocTemplate(
-        str(OUT_PDF),
-        pagesize=A4,
-        leftMargin=1.3 * cm,
-        rightMargin=1.3 * cm,
-        topMargin=1.1 * cm,
-        bottomMargin=1.1 * cm,
-        title="Energy Forecasting — Technical Report",
+        str(OUT_PDF), pagesize=A4,
+        leftMargin=1.3 * cm, rightMargin=1.3 * cm,
+        topMargin=1.1 * cm, bottomMargin=1.1 * cm,
+        title="Energy Forecasting Technical Report",
         author="Thierry Ishimwe, Linda Carla Zorzoli, Mariavittoria Giurato, Cesar Dushimimana",
     )
     doc.build(story)

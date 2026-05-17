@@ -20,7 +20,7 @@ from pptx.util import Cm, Inches, Pt
 
 ROOT = Path(__file__).resolve().parents[1]
 FIGURES = ROOT / "reports" / "figures"
-OUT = ROOT / "reports" / "output" / "executive_summary.pptx"
+OUT = ROOT / "reports" / "output" / "presentation.pptx"
 
 # Visual palette
 NAVY = RGBColor(0x1A, 0x35, 0x52)
@@ -244,11 +244,11 @@ def build() -> None:
     ]
     _add_bullets_to_frame(impl_box, implications, size=11)
 
-    # Box 2 - Future work
+    # Box 2 - Additional work delivered (beyond brief minimum)
     fw_title = s.shapes.add_textbox(Cm(17.5), Cm(10.0), Cm(15.5), Cm(1.0)).text_frame
     p = fw_title.paragraphs[0]
     r = p.add_run()
-    r.text = "Future work"
+    r.text = "Additional work delivered"
     r.font.size = Pt(15)
     r.font.bold = True
     r.font.color.rgb = NAVY
@@ -256,15 +256,18 @@ def build() -> None:
 
     fw_box = s.shapes.add_textbox(Cm(17.5), Cm(11.0), Cm(15.5), Cm(7.0)).text_frame
     fw_box.word_wrap = True
-    future = [
-        ("Extend weather to SARIMA / LSTM / GRU.",
-         "The −0.77% gain on XGBoost is a lower bound. ~70 min DL retrain on the "
-         "already-built augmented matrix."),
-        ("24-step-ahead day-ahead forecasting.",
-         "Current results are 1-step-ahead at hourly resolution. Production at Enel "
-         "uses 24-step horizons made once per day from a fixed cutoff."),
+    delivered = [
+        ("XGBoost + Stacking ensemble.",
+         "4th model family beyond brief minimum; tests whether base-model errors "
+         "decorrelate enough to combine."),
+        ("Diebold-Mariano test + per-segment MAE.",
+         "Shows the top three are statistically tied; surfaces peak-hour and "
+         "October pain points that aggregate MAE hides."),
+        ("Weather data integration.",
+         "Four free Paris-Montsouris columns reduce XGBoost MAE by 0.77%, "
+         "concentrated on heating-season folds."),
     ]
-    _add_bullets_to_frame(fw_box, future, size=11)
+    _add_bullets_to_frame(fw_box, delivered, size=11)
 
     # Footer line on both slides
     for slide in prs.slides:
